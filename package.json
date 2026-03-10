@@ -1,0 +1,57 @@
+{
+  "name": "@simplicity/ralph",
+  "version": "0.1.0",
+  "description": "Stateless, PRD-driven AI development loop powered by Claude Code",
+  "type": "module",
+  "main": "./dist/ralph/cli.js",
+  "bin": {
+    "ralph": "./dist/ralph/cli.js"
+  },
+  "scripts": {
+    "lint": "eslint src/",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm build && pnpm test:coverage",
+    "milestones": "bash scripts/update-milestones.sh",
+    "ralph": "bash scripts/ralph.sh",
+    "ralph:kill": "bash scripts/ralph-kill.sh",
+    "shas": "bash scripts/update-shas.sh",
+    "cost": "bash scripts/calc-cost.sh",
+    "monitor": "bash scripts/ralph-monitor.sh -w",
+    "monitor:once": "bash scripts/ralph-monitor.sh",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.4.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^10.0.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.3",
+    "prettier": "^3.8.1",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^4.0.18"
+  }
+}

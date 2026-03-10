@@ -1,0 +1,42 @@
+# Milestones
+
+Quick-scan index. Source of truth is `docs/tasks/T-NNN.md`.
+
+_Generated manually for bootstrap._
+
+## 1 — Infrastructure
+
+- [ ] T-000: Project infrastructure and CLI skeleton
+
+## 2 — Core Modules
+
+- [ ] T-001: Task file parser
+- [ ] T-002: Project config parser
+- [ ] T-003: Git operations module
+- [ ] T-004: Process management module
+
+## 3 — Utility Commands
+
+- [ ] T-005: Kill command
+- [ ] T-006: SHAs command
+- [ ] T-007: Milestones command
+- [ ] T-008: Cost command
+- [ ] T-009: Monitor command
+
+## 4 — The Loop
+
+- [ ] T-010: Loop command
+
+## 5 — Init Command
+
+- [ ] T-011: Init templates
+- [ ] T-012: Init command
+
+## 6 — Integration & Polish
+
+- [ ] T-013: End-to-end integration tests
+
+## 7 — CI/CD & Publishing
+
+- [ ] T-014: CI workflow
+- [ ] T-015: Publish workflow
