@@ -23,7 +23,7 @@ function git(cwd: string, args: string): string {
 
 async function initRepo(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'ralph-git-test-'));
-  git(dir, 'init');
+  git(dir, 'init -b main');
   git(dir, 'config user.email "test@test.com"');
   git(dir, 'config user.name "Test"');
   return dir;
