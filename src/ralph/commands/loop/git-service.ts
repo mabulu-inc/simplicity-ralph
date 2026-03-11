@@ -3,6 +3,7 @@ import {
   discardUnstaged,
   getHeadSha,
   hasUnpushedCommits,
+  isWorkingTreeClean,
   pushToRemote,
   resolveGitTarget,
 } from '../../core/git.js';
@@ -40,12 +41,19 @@ export class LoopGitService {
     }
   }
 
-  async commitMetadata(files: string[], message: string): Promise<string | undefined> {
+  async commitMetadata(
+    files: string[],
+    message: string,
+  ): Promise<{ sha?: string; error?: string; skipped?: boolean }> {
     try {
+      const clean = await isWorkingTreeClean(this.projectDir);
+      if (clean) {
+        return { skipped: true };
+      }
       const sha = await addAndCommit(this.projectDir, files, message);
-      return sha;
-    } catch {
-      return undefined;
+      return { sha };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
     }
   }
 

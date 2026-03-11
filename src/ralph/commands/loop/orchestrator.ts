@@ -217,14 +217,18 @@ export class LoopOrchestrator {
       }
     }
 
-    const sha = await this.gitService.commitMetadata(
+    const commitResult = await this.gitService.commitMetadata(
       ['docs/tasks', 'docs/MILESTONES.md'],
       'Update task metadata',
     );
-    if (sha) {
-      console.log(`[Iteration ${iteration}] Metadata commit: ${sha.slice(0, 7)}`);
-    } else {
-      console.error(`[Iteration ${iteration}] Warning: metadata commit failed (nothing to commit)`);
+    if (commitResult.sha) {
+      console.log(`[Iteration ${iteration}] Metadata commit: ${commitResult.sha.slice(0, 7)}`);
+    } else if (commitResult.skipped) {
+      console.log(`[Iteration ${iteration}] Metadata: no changes to commit`);
+    } else if (commitResult.error) {
+      console.error(
+        `[Iteration ${iteration}] Warning: metadata commit failed: ${commitResult.error}`,
+      );
     }
   }
 }
