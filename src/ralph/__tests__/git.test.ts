@@ -168,7 +168,7 @@ describe('git operations', () => {
     it('detects unpushed commits', async () => {
       // Create a bare remote
       const bare = await mkdtemp(join(tmpdir(), 'ralph-bare-'));
-      git(bare, 'init --bare');
+      git(bare, 'init --bare -b main');
       git(dir, `remote add origin ${bare}`);
       await makeCommit(dir, 'a.txt', 'v1', 'initial');
       git(dir, 'push -u origin HEAD:main');
@@ -180,7 +180,7 @@ describe('git operations', () => {
 
     it('returns false when everything is pushed', async () => {
       const bare = await mkdtemp(join(tmpdir(), 'ralph-bare-'));
-      git(bare, 'init --bare');
+      git(bare, 'init --bare -b main');
       git(dir, `remote add origin ${bare}`);
       await makeCommit(dir, 'a.txt', 'v1', 'initial');
       git(dir, 'push -u origin HEAD:main');
@@ -193,7 +193,7 @@ describe('git operations', () => {
   describe('pushToRemote', () => {
     it('pushes commits to the remote', async () => {
       const bare = await mkdtemp(join(tmpdir(), 'ralph-bare-'));
-      git(bare, 'init --bare');
+      git(bare, 'init --bare -b main');
       git(dir, `remote add origin ${bare}`);
       await makeCommit(dir, 'a.txt', 'v1', 'initial');
       git(dir, 'push -u origin HEAD:main');
@@ -253,7 +253,7 @@ describe('git operations', () => {
   describe('detectTrackingRemote', () => {
     it('returns the tracking remote for a branch', async () => {
       const bare = await mkdtemp(join(tmpdir(), 'ralph-bare-'));
-      git(bare, 'init --bare');
+      git(bare, 'init --bare -b main');
       git(dir, `remote add upstream ${bare}`);
       await makeCommit(dir, 'a.txt', 'v1', 'initial');
       git(dir, 'push -u upstream HEAD:main');
@@ -289,7 +289,7 @@ describe('git operations', () => {
 
     it('uses tracking remote when available', async () => {
       const bare = await mkdtemp(join(tmpdir(), 'ralph-bare-'));
-      git(bare, 'init --bare');
+      git(bare, 'init --bare -b main');
       git(dir, `remote add upstream ${bare}`);
       await makeCommit(dir, 'a.txt', 'v1', 'initial');
       git(dir, 'push -u upstream HEAD:main');
@@ -314,7 +314,7 @@ describe('git operations', () => {
 
     it('env vars take precedence over auto-detection', async () => {
       const bare = await mkdtemp(join(tmpdir(), 'ralph-bare-'));
-      git(bare, 'init --bare');
+      git(bare, 'init --bare -b main');
       git(dir, `remote add upstream ${bare}`);
       await makeCommit(dir, 'a.txt', 'v1', 'initial');
       git(dir, 'push -u upstream HEAD:main');
