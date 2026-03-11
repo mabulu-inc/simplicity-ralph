@@ -4,11 +4,13 @@ import { scanTasks, findNextTask, allDone, countByStatus, type Task } from '../c
 import { readConfig, type ProjectConfig } from '../core/config.js';
 import { discardUnstaged, getHeadSha, hasUnpushedCommits, pushToRemote } from '../core/git.js';
 import { spawnWithCapture, monitorProcess } from '../core/process.js';
+import { computeTaskComplexity, type ComplexityTier } from '../core/complexity.js';
 
 export interface LoopOptions {
   iterations: number;
   delay: number;
   timeout: number;
+  maxTurns: number;
   verbose: boolean;
   dryRun: boolean;
   push: boolean;
@@ -20,11 +22,29 @@ export interface PreflightResult {
   errors: string[];
 }
 
+export interface ScalingResult {
+  tier: ComplexityTier;
+  maxTurns: number;
+  timeout: number;
+}
+
+const TIER_SCALING: Record<ComplexityTier, { maxTurns: number; timeout: number }> = {
+  light: { maxTurns: 50, timeout: 600 },
+  standard: { maxTurns: 75, timeout: 900 },
+  heavy: { maxTurns: 125, timeout: 1200 },
+};
+
+export function scaleForComplexity(task: Task): ScalingResult {
+  const tier = computeTaskComplexity(task);
+  return { tier, ...TIER_SCALING[tier] };
+}
+
 export function parseLoopOptions(args: string[]): LoopOptions {
   const opts: LoopOptions = {
     iterations: 10,
     delay: 2,
-    timeout: 900,
+    timeout: 0,
+    maxTurns: 0,
     verbose: false,
     dryRun: false,
     push: true,
@@ -45,6 +65,10 @@ export function parseLoopOptions(args: string[]): LoopOptions {
       case '-t':
       case '--timeout':
         opts.timeout = parseInt(args[++i], 10);
+        break;
+      case '-m':
+      case '--max-turns':
+        opts.maxTurns = parseInt(args[++i], 10);
         break;
       case '-v':
       case '--verbose':
@@ -114,16 +138,25 @@ WORKFLOW:
    - Read files: ALWAYS use the Read tool. NEVER use cat, head, tail, or sed to read files.
    - Search code: ALWAYS use Grep or Glob tools. NEVER use grep, find, or ls in Bash.
    - The ONLY acceptable Bash uses are: git, ${config.packageManager}, docker, and commands with no dedicated tool.
-6. Do NOT push to origin — the loop handles that.
-7. Complete ONE task, then STOP. Do not start a second task.`;
+6. BASH TIMEOUTS: When running test/build commands via Bash, set timeout to at least 120000ms (120 seconds). TypeScript compilation and test suites need time. Never use 30000ms or less for test/build commands.
+7. Do NOT push to origin — the loop handles that.
+8. Complete ONE task, then STOP. Do not start a second task.`;
 }
 
-function formatDryRunConfig(opts: LoopOptions, config: ProjectConfig): string {
+function formatDryRunConfig(
+  opts: LoopOptions,
+  config: ProjectConfig,
+  scaling: ScalingResult,
+): string {
+  const effectiveTimeout = opts.timeout > 0 ? opts.timeout : scaling.timeout;
+  const effectiveMaxTurns = opts.maxTurns > 0 ? opts.maxTurns : scaling.maxTurns;
   const lines = [
     'Loop configuration (dry-run):',
     `  iterations: ${opts.iterations === 0 ? 'unlimited' : opts.iterations}`,
     `  delay: ${opts.delay}s`,
-    `  timeout: ${opts.timeout}s`,
+    `  timeout: ${effectiveTimeout}s${opts.timeout === 0 ? ' (auto)' : ''}`,
+    `  max turns: ${effectiveMaxTurns}${opts.maxTurns === 0 ? ' (auto)' : ''}`,
+    `  complexity tier: ${scaling.tier}`,
     `  verbose: ${opts.verbose}`,
     `  push: ${opts.push}`,
     `  db: ${opts.db}`,
@@ -158,12 +191,18 @@ export async function run(args: string[], cwd?: string): Promise<void> {
     return;
   }
 
+  const tasksDir = join(projectDir, 'docs', 'tasks');
+
   if (opts.dryRun) {
-    console.log(formatDryRunConfig(opts, config));
+    const tasks = await scanTasks(tasksDir);
+    const nextTask = findNextTask(tasks);
+    const scaling = nextTask
+      ? scaleForComplexity(nextTask)
+      : { tier: 'light' as ComplexityTier, maxTurns: 50, timeout: 600 };
+    console.log(formatDryRunConfig(opts, config, scaling));
     return;
   }
 
-  const tasksDir = join(projectDir, 'docs', 'tasks');
   const logsDir = join(projectDir, '.ralph-logs');
 
   for (let iteration = 1; opts.iterations === 0 || iteration <= opts.iterations; iteration++) {
@@ -182,6 +221,10 @@ export async function run(args: string[], cwd?: string): Promise<void> {
       );
       return;
     }
+
+    const scaling = scaleForComplexity(nextTask);
+    const effectiveTimeout = opts.timeout > 0 ? opts.timeout : scaling.timeout;
+    const effectiveMaxTurns = opts.maxTurns > 0 ? opts.maxTurns : scaling.maxTurns;
 
     console.log(`[Iteration ${iteration}] Starting ${nextTask.id}: ${nextTask.title}`);
     console.log(`  Progress: ${counts.DONE}/${counts.DONE + counts.TODO} tasks done`);
@@ -217,17 +260,25 @@ export async function run(args: string[], cwd?: string): Promise<void> {
 
     const child = spawnWithCapture(
       'claude',
-      ['--print', '--output-format', 'stream-json', '-p', prompt],
+      [
+        '--print',
+        '--output-format',
+        'stream-json',
+        '--max-turns',
+        String(effectiveMaxTurns),
+        '-p',
+        prompt,
+      ],
       { logFile, cwd: projectDir },
     );
 
     const result = await monitorProcess(child, {
-      timeoutMs: opts.timeout * 1000,
+      timeoutMs: effectiveTimeout * 1000,
       onOutput: opts.verbose ? (data: string) => process.stdout.write(data) : undefined,
     });
 
     if (result.timedOut) {
-      console.error(`[Iteration ${iteration}] Timed out after ${opts.timeout}s`);
+      console.error(`[Iteration ${iteration}] Timed out after ${effectiveTimeout}s`);
       continue;
     }
 

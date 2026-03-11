@@ -21,7 +21,12 @@ vi.mock('../core/git.js', () => ({
 
 import * as processModule from '../core/process.js';
 import * as gitModule from '../core/git.js';
-import { parseLoopOptions, preflightChecks, generateBootPrompt } from '../commands/loop.js';
+import {
+  parseLoopOptions,
+  preflightChecks,
+  generateBootPrompt,
+  scaleForComplexity,
+} from '../commands/loop.js';
 import type { Task } from '../core/tasks.js';
 import type { ProjectConfig } from '../core/config.js';
 
@@ -41,7 +46,8 @@ describe('parseLoopOptions', () => {
     expect(opts).toEqual({
       iterations: 10,
       delay: 2,
-      timeout: 900,
+      timeout: 0,
+      maxTurns: 0,
       verbose: false,
       dryRun: false,
       push: true,
@@ -81,17 +87,84 @@ describe('parseLoopOptions', () => {
     expect(parseLoopOptions(['--no-db']).db).toBe(false);
   });
 
+  it('parses -m / --max-turns', () => {
+    expect(parseLoopOptions(['-m', '50']).maxTurns).toBe(50);
+    expect(parseLoopOptions(['--max-turns', '100']).maxTurns).toBe(100);
+  });
+
   it('parses multiple options together', () => {
-    const opts = parseLoopOptions(['-n', '3', '-t', '120', '-v', '--no-push', '--dry-run']);
+    const opts = parseLoopOptions([
+      '-n',
+      '3',
+      '-t',
+      '120',
+      '-m',
+      '75',
+      '-v',
+      '--no-push',
+      '--dry-run',
+    ]);
     expect(opts).toEqual({
       iterations: 3,
       delay: 2,
       timeout: 120,
+      maxTurns: 75,
       verbose: true,
       dryRun: true,
       push: false,
       db: true,
     });
+  });
+});
+
+describe('scaleForComplexity', () => {
+  function taskWith(overrides: Partial<Task>): Task {
+    return {
+      id: 'T-001',
+      number: 1,
+      title: 'Simple task',
+      status: 'TODO',
+      milestone: '1 — Setup',
+      depends: [],
+      prdReference: '§1',
+      completed: undefined,
+      commit: undefined,
+      cost: undefined,
+      blocked: false,
+      description: 'A simple task.',
+      producesCount: 1,
+      ...overrides,
+    };
+  }
+
+  it('returns light tier defaults for simple tasks', () => {
+    const result = scaleForComplexity(taskWith({}));
+    expect(result).toEqual({ tier: 'light', maxTurns: 50, timeout: 600 });
+  });
+
+  it('returns standard tier for tasks with 2-3 deps', () => {
+    const result = scaleForComplexity(taskWith({ depends: ['T-001', 'T-002'] }));
+    expect(result).toEqual({ tier: 'standard', maxTurns: 75, timeout: 900 });
+  });
+
+  it('returns heavy tier for tasks with 4+ deps', () => {
+    const result = scaleForComplexity(taskWith({ depends: ['T-001', 'T-002', 'T-003', 'T-004'] }));
+    expect(result).toEqual({ tier: 'heavy', maxTurns: 125, timeout: 1200 });
+  });
+
+  it('returns heavy tier for integration keyword in title', () => {
+    const result = scaleForComplexity(taskWith({ title: 'End-to-end integration tests' }));
+    expect(result).toEqual({ tier: 'heavy', maxTurns: 125, timeout: 1200 });
+  });
+
+  it('returns standard tier for 3-4 produces', () => {
+    const result = scaleForComplexity(taskWith({ producesCount: 3 }));
+    expect(result).toEqual({ tier: 'standard', maxTurns: 75, timeout: 900 });
+  });
+
+  it('returns heavy tier for 5+ produces', () => {
+    const result = scaleForComplexity(taskWith({ producesCount: 5 }));
+    expect(result).toEqual({ tier: 'heavy', maxTurns: 125, timeout: 1200 });
   });
 });
 
@@ -210,6 +283,13 @@ describe('generateBootPrompt', () => {
     expect(prompt).toContain('Verify');
     expect(prompt).toContain('Commit');
   });
+
+  it('includes bash timeout guidance', () => {
+    const prompt = generateBootPrompt(mockTask, mockConfig);
+    expect(prompt).toContain('120000ms');
+    expect(prompt).toContain('120 seconds');
+    expect(prompt).toContain('timeout');
+  });
 });
 
 describe('run', () => {
@@ -249,7 +329,7 @@ describe('run', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('dry-run prints config and exits without spawning', async () => {
+  it('dry-run prints config with complexity tier and exits without spawning', async () => {
     await setupProject();
 
     const { run } = await import('../commands/loop.js');
@@ -258,6 +338,8 @@ describe('run', () => {
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('iterations');
     expect(output).toContain('timeout');
+    expect(output).toContain('complexity tier');
+    expect(output).toContain('max turns');
     expect(spawnWithCapture).not.toHaveBeenCalled();
   });
 
@@ -304,7 +386,7 @@ describe('run', () => {
     expect(output).toContain('No eligible task');
   });
 
-  it('spawns claude with boot prompt for eligible task', async () => {
+  it('spawns claude with auto-scaled max-turns and timeout', async () => {
     await setupProject();
     const fakeChild = mockChildProcess();
     monitorProcess.mockResolvedValue({ exitCode: 0, timedOut: false });
@@ -314,12 +396,42 @@ describe('run', () => {
 
     expect(spawnWithCapture).toHaveBeenCalledWith(
       'claude',
-      expect.arrayContaining(['--print', '--output-format', 'stream-json']),
+      expect.arrayContaining(['--print', '--output-format', 'stream-json', '--max-turns', '50']),
       expect.objectContaining({ cwd: tmpDir }),
     );
+    // Light tier: 600s timeout
     expect(monitorProcess).toHaveBeenCalledWith(
       fakeChild,
-      expect.objectContaining({ timeoutMs: 900000 }),
+      expect.objectContaining({ timeoutMs: 600000 }),
+    );
+  });
+
+  it('passes explicit --max-turns override to claude', async () => {
+    await setupProject();
+    mockChildProcess();
+    monitorProcess.mockResolvedValue({ exitCode: 0, timedOut: false });
+
+    const { run } = await import('../commands/loop.js');
+    await run(['-n', '1', '-m', '200', '--no-push'], tmpDir);
+
+    expect(spawnWithCapture).toHaveBeenCalledWith(
+      'claude',
+      expect.arrayContaining(['--max-turns', '200']),
+      expect.objectContaining({ cwd: tmpDir }),
+    );
+  });
+
+  it('uses explicit -t override instead of auto-scaled timeout', async () => {
+    await setupProject();
+    const fakeChild = mockChildProcess();
+    monitorProcess.mockResolvedValue({ exitCode: 0, timedOut: false });
+
+    const { run } = await import('../commands/loop.js');
+    await run(['-n', '1', '-t', '300', '--no-push'], tmpDir);
+
+    expect(monitorProcess).toHaveBeenCalledWith(
+      fakeChild,
+      expect.objectContaining({ timeoutMs: 300000 }),
     );
   });
 
