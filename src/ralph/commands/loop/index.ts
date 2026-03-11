@@ -18,6 +18,7 @@ export interface LoopOptions {
   dryRun: boolean;
   push: boolean;
   db: boolean;
+  agent: string;
 }
 
 export interface PreflightResult {
@@ -47,6 +48,7 @@ export function parseLoopOptions(args: string[]): LoopOptions {
     dryRun: false,
     push: true,
     db: true,
+    agent: 'claude',
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -80,6 +82,10 @@ export function parseLoopOptions(args: string[]): LoopOptions {
         break;
       case '--no-db':
         opts.db = false;
+        break;
+      case '-a':
+      case '--agent':
+        opts.agent = args[++i];
         break;
     }
   }

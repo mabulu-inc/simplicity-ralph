@@ -2,6 +2,8 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { scanTasks, findNextTask, allDone, countByStatus } from '../../core/tasks.js';
 import { readConfig } from '../../core/config.js';
+import { getProvider, type AgentProvider } from '../../core/agent-provider.js';
+import { ensureProvidersRegistered } from '../../providers/index.js';
 import { spawnWithCapture, monitorProcess } from '../../core/process.js';
 import { writePidFile, removePidFile } from '../../core/pid-file.js';
 import { loadAndInterpolate } from '../../core/prompt-template.js';
@@ -12,6 +14,7 @@ export class LoopOrchestrator {
   private readonly tasksDir: string;
   private readonly logsDir: string;
   private readonly gitService: LoopGitService;
+  private readonly provider: AgentProvider;
 
   constructor(
     private readonly projectDir: string,
@@ -20,6 +23,8 @@ export class LoopOrchestrator {
     this.tasksDir = join(projectDir, 'docs', 'tasks');
     this.logsDir = join(projectDir, '.ralph-logs');
     this.gitService = new LoopGitService(projectDir);
+    ensureProvidersRegistered();
+    this.provider = getProvider(opts.agent);
   }
 
   async execute(): Promise<void> {
@@ -94,21 +99,24 @@ export class LoopOrchestrator {
       ].join('');
       const logFile = join(this.logsDir, `${nextTask.id}-${timestamp}.jsonl`);
 
-      const child = spawnWithCapture(
-        'claude',
-        [
-          '--print',
-          '--verbose',
-          '--output-format',
-          'stream-json',
-          '--max-turns',
-          String(effectiveMaxTurns),
-          '--dangerously-skip-permissions',
-          '-p',
-          prompt,
-        ],
-        { logFile, cwd: this.projectDir },
-      );
+      const buildArgsOptions: {
+        outputFormat: string[];
+        maxTurns?: number;
+        model?: string;
+      } = {
+        outputFormat: this.provider.outputFormat,
+      };
+
+      if (this.provider.supportsMaxTurns) {
+        buildArgsOptions.maxTurns = effectiveMaxTurns;
+      }
+
+      const agentArgs = this.provider.buildArgs(prompt, buildArgsOptions);
+
+      const child = spawnWithCapture(this.provider.binary, agentArgs, {
+        logFile,
+        cwd: this.projectDir,
+      });
 
       const result = await monitorProcess(child, {
         timeoutMs: effectiveTimeout * 1000,

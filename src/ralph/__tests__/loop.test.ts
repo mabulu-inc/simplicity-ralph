@@ -53,6 +53,7 @@ describe('parseLoopOptions', () => {
       dryRun: false,
       push: true,
       db: true,
+      agent: 'claude',
     });
   });
 
@@ -114,7 +115,13 @@ describe('parseLoopOptions', () => {
       dryRun: true,
       push: false,
       db: true,
+      agent: 'claude',
     });
+  });
+
+  it('parses -a / --agent', () => {
+    expect(parseLoopOptions(['-a', 'gemini']).agent).toBe('gemini');
+    expect(parseLoopOptions(['--agent', 'codex']).agent).toBe('codex');
   });
 });
 

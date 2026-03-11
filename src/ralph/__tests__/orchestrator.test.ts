@@ -28,6 +28,7 @@ import * as processModule from '../core/process.js';
 import * as gitModule from '../core/git.js';
 import { LoopOrchestrator } from '../commands/loop/orchestrator.js';
 import type { LoopOptions } from '../commands/loop/index.js';
+import { registerProvider, resetRegistry, type AgentProvider } from '../core/agent-provider.js';
 
 const spawnWithCapture = vi.mocked(processModule.spawnWithCapture);
 const monitorProcess = vi.mocked(processModule.monitorProcess);
@@ -93,6 +94,7 @@ describe('LoopOrchestrator', () => {
       dryRun: false,
       push: false,
       db: true,
+      agent: 'claude',
       ...overrides,
     };
   }
@@ -297,5 +299,70 @@ describe('LoopOrchestrator', () => {
     await orchestrator.execute();
 
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('push'));
+  });
+
+  it('uses a custom provider when --agent specifies one', async () => {
+    await setupProject();
+    mockChildProcess();
+    monitorProcess.mockResolvedValue({ exitCode: 0, timedOut: false });
+
+    const customProvider: AgentProvider = {
+      binary: 'gemini',
+      outputFormat: ['--output-format', 'stream-json'],
+      supportsMaxTurns: false,
+      instructionsFile: 'GEMINI.md',
+      buildArgs: (prompt, options) => ['-p', prompt, ...options.outputFormat],
+      parseOutput: (raw) => raw,
+    };
+
+    resetRegistry();
+    registerProvider('gemini', customProvider);
+
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts({ agent: 'gemini' }));
+    await orchestrator.execute();
+
+    expect(spawnWithCapture).toHaveBeenCalledWith(
+      'gemini',
+      ['-p', expect.any(String), '--output-format', 'stream-json'],
+      expect.objectContaining({ cwd: tmpDir }),
+    );
+  });
+
+  it('omits max-turns for providers that do not support it', async () => {
+    await setupProject();
+    mockChildProcess();
+    monitorProcess.mockResolvedValue({ exitCode: 0, timedOut: false });
+
+    const noMaxTurnsProvider: AgentProvider = {
+      binary: 'codex',
+      outputFormat: ['--json'],
+      supportsMaxTurns: false,
+      instructionsFile: 'AGENTS.md',
+      buildArgs: (prompt, options) => {
+        const args = ['exec', ...options.outputFormat];
+        if (options.maxTurns !== undefined) {
+          args.push('--max-turns', String(options.maxTurns));
+        }
+        args.push('-p', prompt);
+        return args;
+      },
+      parseOutput: (raw) => raw,
+    };
+
+    resetRegistry();
+    registerProvider('codex', noMaxTurnsProvider);
+
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts({ agent: 'codex' }));
+    await orchestrator.execute();
+
+    const calledArgs = spawnWithCapture.mock.calls[0][1];
+    expect(calledArgs).not.toContain('--max-turns');
+  });
+
+  it('throws when an unknown agent is specified', () => {
+    resetRegistry();
+    expect(() => new LoopOrchestrator(tmpDir, defaultOpts({ agent: 'unknown' }))).toThrow(
+      'Unknown agent provider: unknown',
+    );
   });
 });
