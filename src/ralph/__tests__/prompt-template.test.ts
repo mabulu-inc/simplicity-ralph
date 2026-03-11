@@ -109,6 +109,18 @@ describe('interpolateTemplate', () => {
     const result = interpolateTemplate(template, mockTask, mockConfig);
     expect(result).toBe('No variables here.');
   });
+
+  it('replaces {{project.rules}} with provided projectRules', () => {
+    const template = 'Rules: {{project.rules}}';
+    const result = interpolateTemplate(template, mockTask, mockConfig, '- No TodoWrite');
+    expect(result).toBe('Rules: - No TodoWrite');
+  });
+
+  it('replaces {{project.rules}} with empty string when not provided', () => {
+    const template = 'Rules: [{{project.rules}}]';
+    const result = interpolateTemplate(template, mockTask, mockConfig);
+    expect(result).toBe('Rules: []');
+  });
 });
 
 describe('loadAndInterpolate', () => {
@@ -134,5 +146,34 @@ describe('loadAndInterpolate', () => {
     await expect(loadAndInterpolate(tmpDir, mockTask, mockConfig)).rejects.toThrow(
       'docs/prompts/boot.md',
     );
+  });
+
+  it('reads docs/prompts/rules.md and injects as {{project.rules}}', async () => {
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Rules: {{project.rules}}');
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'rules.md'),
+      '- Do not use TodoWrite\n- All code under src/',
+    );
+
+    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
+    expect(result).toBe('Rules: - Do not use TodoWrite\n- All code under src/');
+  });
+
+  it('resolves {{project.rules}} to empty string when rules.md does not exist', async () => {
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Rules: [{{project.rules}}]');
+
+    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
+    expect(result).toBe('Rules: []');
+  });
+
+  it('resolves {{project.rules}} to empty string when rules.md is empty', async () => {
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Rules: [{{project.rules}}]');
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'rules.md'), '');
+
+    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
+    expect(result).toBe('Rules: []');
   });
 });

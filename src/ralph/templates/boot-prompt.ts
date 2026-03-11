@@ -23,6 +23,8 @@ PROJECT CONFIG:
 - File naming: {{config.fileNaming}}
 - Database: {{config.database}}
 
+{{project.rules}}
+
 WORKFLOW:
 1. BOOT: Read the task file and PRD sections it references. Understand the codebase.
 2. EXECUTE: Implement using strict red/green TDD — write failing tests FIRST, then implement the minimum to pass. Run '{{config.qualityCheck}}' after each layer — do NOT wait until the end.

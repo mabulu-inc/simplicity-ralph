@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { generateClaudeMd } from '../templates/claude-md.js';
+import { generateGeminiMd } from '../templates/gemini-md.js';
+import { generateAgentsMd } from '../templates/agents-md.js';
+import { generateCursorRules } from '../templates/cursor-rules.js';
+import { generateContinueYaml } from '../templates/continue-yaml.js';
 import { generateMethodology } from '../templates/methodology.js';
 import { generatePrd } from '../templates/prd.js';
 import { generateTask000 } from '../templates/task-000.js';
 import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
+import { defaultRulesTemplate } from '../templates/rules-md.js';
 
 interface TemplateConfig {
   projectName: string;
@@ -48,58 +53,104 @@ describe('generateClaudeMd', () => {
     expect(result).toContain('docs/RALPH-METHODOLOGY.md');
   });
 
-  it('includes all required config fields', () => {
+  it('does not include Project-Specific Config section', () => {
     const result = generateClaudeMd(tsConfig);
-    expect(result).toContain('**Language**: TypeScript');
-    expect(result).toContain('**Package manager**: pnpm');
-    expect(result).toContain('**Testing framework**: Vitest');
-    expect(result).toContain('**Quality check**: `pnpm check`');
-    expect(result).toContain('**Test command**: `pnpm test`');
+    expect(result).not.toContain('Project-Specific Config');
   });
 
-  it('includes optional file naming when provided', () => {
+  it('does not include config fields like Language or Package manager', () => {
     const result = generateClaudeMd(tsConfig);
-    expect(result).toContain('**File naming**: kebab-case');
+    expect(result).not.toContain('**Language**');
+    expect(result).not.toContain('**Package manager**');
+    expect(result).not.toContain('**Testing framework**');
   });
 
-  it('omits file naming when not provided', () => {
-    const result = generateClaudeMd(pyConfig);
-    expect(result).not.toContain('File naming');
-  });
-
-  it('includes database when provided', () => {
-    const result = generateClaudeMd(pyConfig);
-    expect(result).toContain('**Database**: PostgreSQL via Docker');
-  });
-
-  it('omits database when not provided', () => {
+  it('includes project goal', () => {
     const result = generateClaudeMd(tsConfig);
-    expect(result).not.toContain('Database');
+    expect(result).toContain('Build my-app');
+    expect(result).toContain('docs/PRD.md');
+  });
+});
+
+describe('generateGeminiMd (slimmed)', () => {
+  it('includes project name and goal', () => {
+    const result = generateGeminiMd(tsConfig);
+    expect(result).toContain('# my-app');
+    expect(result).toContain('Build my-app');
   });
 
-  it('has Project-Specific Config section header', () => {
-    const result = generateClaudeMd(tsConfig);
-    expect(result).toContain('## Project-Specific Config');
+  it('does not include Project-Specific Config section', () => {
+    const result = generateGeminiMd(tsConfig);
+    expect(result).not.toContain('Project-Specific Config');
+    expect(result).not.toContain('**Language**');
   });
 
-  it('is parseable by the existing config parser', async () => {
-    const { parseConfig } = await import('../core/config.js');
-    const content = generateClaudeMd(tsConfig);
-    const config = parseConfig(content);
-    expect(config.language).toBe('TypeScript');
-    expect(config.packageManager).toBe('pnpm');
-    expect(config.testingFramework).toBe('Vitest');
-    expect(config.qualityCheck).toBe('pnpm check');
-    expect(config.testCommand).toBe('pnpm test');
-    expect(config.fileNaming).toBe('kebab-case');
-    expect(config.database).toBeUndefined();
+  it('includes methodology reference', () => {
+    const result = generateGeminiMd(tsConfig);
+    expect(result).toContain('docs/RALPH-METHODOLOGY.md');
+  });
+});
+
+describe('generateAgentsMd (slimmed)', () => {
+  it('includes project name and goal', () => {
+    const result = generateAgentsMd(tsConfig);
+    expect(result).toContain('# my-app');
+    expect(result).toContain('Build my-app');
   });
 
-  it('is parseable with database config', async () => {
-    const { parseConfig } = await import('../core/config.js');
-    const content = generateClaudeMd(pyConfig);
-    const config = parseConfig(content);
-    expect(config.database).toBe('PostgreSQL via Docker');
+  it('does not include Project-Specific Config section', () => {
+    const result = generateAgentsMd(tsConfig);
+    expect(result).not.toContain('Project-Specific Config');
+    expect(result).not.toContain('**Language**');
+  });
+});
+
+describe('generateCursorRules (slimmed)', () => {
+  it('includes project name and goal', () => {
+    const result = generateCursorRules(tsConfig);
+    expect(result).toContain('# my-app');
+    expect(result).toContain('Build my-app');
+  });
+
+  it('does not include Project-Specific Config section', () => {
+    const result = generateCursorRules(tsConfig);
+    expect(result).not.toContain('Project-Specific Config');
+    expect(result).not.toContain('**Language**');
+  });
+});
+
+describe('generateContinueYaml (slimmed)', () => {
+  it('includes project name', () => {
+    const result = generateContinueYaml(tsConfig);
+    expect(result).toContain('my-app');
+  });
+
+  it('does not include config comments', () => {
+    const result = generateContinueYaml(tsConfig);
+    expect(result).not.toContain('# Project Config');
+    expect(result).not.toContain('#   Language:');
+  });
+
+  it('includes methodology reference', () => {
+    const result = generateContinueYaml(tsConfig);
+    expect(result).toContain('RALPH-METHODOLOGY.md');
+  });
+});
+
+describe('defaultRulesTemplate', () => {
+  it('returns a non-empty string', () => {
+    const result = defaultRulesTemplate();
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('contains a comment explaining purpose', () => {
+    const result = defaultRulesTemplate();
+    expect(result).toContain('project-specific rules');
+  });
+
+  it('contains example rules', () => {
+    const result = defaultRulesTemplate();
+    expect(result).toContain('Example');
   });
 });
 

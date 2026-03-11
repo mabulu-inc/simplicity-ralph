@@ -3,7 +3,12 @@ import { join } from 'node:path';
 import type { Task } from './tasks.js';
 import type { ProjectConfig } from './config.js';
 
-export function interpolateTemplate(template: string, task: Task, config: ProjectConfig): string {
+export function interpolateTemplate(
+  template: string,
+  task: Task,
+  config: ProjectConfig,
+  projectRules = '',
+): string {
   const vars: Record<string, string> = {
     'task.id': task.id,
     'task.title': task.title,
@@ -16,6 +21,7 @@ export function interpolateTemplate(template: string, task: Task, config: Projec
     'config.testCommand': config.testCommand,
     'config.fileNaming': config.fileNaming ?? '',
     'config.database': config.database ?? '',
+    'project.rules': projectRules,
   };
 
   return template.replace(/\{\{(\w+\.\w+)\}\}/g, (match, key: string) => {
@@ -37,5 +43,15 @@ export async function loadAndInterpolate(
       `Boot prompt template not found at docs/prompts/boot.md. Run 'ralph init' to create it.`,
     );
   }
-  return interpolateTemplate(template, task, config);
+
+  let projectRules = '';
+  try {
+    const rulesPath = join(projectDir, 'docs', 'prompts', 'rules.md');
+    const content = await readFile(rulesPath, 'utf-8');
+    projectRules = content;
+  } catch {
+    // rules.md doesn't exist — resolve to empty string
+  }
+
+  return interpolateTemplate(template, task, config, projectRules);
 }

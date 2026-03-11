@@ -73,4 +73,18 @@ describe('defaultBootPromptTemplate', () => {
     const template = defaultBootPromptTemplate();
     expect(template).toContain('T-NNN:');
   });
+
+  it('contains {{project.rules}} placeholder', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('{{project.rules}}');
+  });
+
+  it('places {{project.rules}} after PROJECT CONFIG and before WORKFLOW', () => {
+    const template = defaultBootPromptTemplate();
+    const configIdx = template.indexOf('PROJECT CONFIG');
+    const rulesIdx = template.indexOf('{{project.rules}}');
+    const workflowIdx = template.indexOf('WORKFLOW:');
+    expect(configIdx).toBeLessThan(rulesIdx);
+    expect(rulesIdx).toBeLessThan(workflowIdx);
+  });
 });

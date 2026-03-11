@@ -47,16 +47,17 @@ describe('integration: ralph init creates expected file structure', () => {
     cleanup(tmpDir);
   });
 
-  it('creates all six scaffold files in a fresh directory', async () => {
+  it('creates all seven scaffold files in a fresh directory', async () => {
     const result = await runInit(tmpDir, defaultAnswers);
 
-    expect(result.created).toHaveLength(6);
+    expect(result.created).toHaveLength(7);
     expect(result.skipped).toHaveLength(0);
 
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'PRD.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'RALPH-METHODOLOGY.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'tasks', 'T-000.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'CLAUDE.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'rules.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'boot.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'ralph.config.json'))).toBe(true);
   });
@@ -68,10 +69,8 @@ describe('integration: ralph init creates expected file structure', () => {
     expect(prd).toContain('integration-test-app');
 
     const claudeMd = fs.readFileSync(path.join(tmpDir, '.claude', 'CLAUDE.md'), 'utf-8');
-    expect(claudeMd).toContain('**Language**: TypeScript');
-    expect(claudeMd).toContain('**Package manager**: pnpm');
-    expect(claudeMd).toContain('**Testing framework**: Vitest');
-    expect(claudeMd).toContain('pnpm check');
+    expect(claudeMd).toContain('Build integration-test-app');
+    expect(claudeMd).toContain('RALPH-METHODOLOGY.md');
 
     const task = fs.readFileSync(path.join(tmpDir, 'docs', 'tasks', 'T-000.md'), 'utf-8');
     expect(task).toContain('T-000');
