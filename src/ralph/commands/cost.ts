@@ -2,6 +2,7 @@ import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, isAbsolute } from 'node:path';
 import { scanTasks, type Task } from '../core/tasks.js';
 import { getPricing } from '../core/defaults.js';
+import { updateField } from '../core/markdown.js';
 
 export interface TokenUsage {
   input_tokens: number;
@@ -144,20 +145,7 @@ function extractTaskId(filename: string): string | undefined {
 }
 
 function updateCostField(content: string, cost: string): string {
-  const costRe = /^- \*\*Cost\*\*:\s*.+$/m;
-  if (costRe.test(content)) {
-    return content.replace(costRe, `- **Cost**: ${cost}`);
-  }
-  const commitRe = /^(- \*\*Commit\*\*:\s*.+)$/m;
-  if (commitRe.test(content)) {
-    return content.replace(commitRe, `$1\n- **Cost**: ${cost}`);
-  }
-  const completedRe = /^(- \*\*Completed\*\*:\s*.+)$/m;
-  if (completedRe.test(content)) {
-    return content.replace(completedRe, `$1\n- **Cost**: ${cost}`);
-  }
-  const prdRe = /^(- \*\*PRD Reference\*\*:\s*.+)$/m;
-  return content.replace(prdRe, `$1\n- **Cost**: ${cost}`);
+  return updateField(content, 'Cost', cost, ['Commit', 'Completed', 'PRD Reference']);
 }
 
 export async function run(args: string[], cwd?: string): Promise<void> {

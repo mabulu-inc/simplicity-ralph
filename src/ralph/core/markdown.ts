@@ -124,6 +124,61 @@ export function extractSectionFirstParagraph(tree: Root, headingText: string): s
   return '';
 }
 
+/**
+ * Update or insert a bold-field value in Markdown source text.
+ *
+ * If a list item `- **fieldName**: …` exists, its value is replaced.
+ * Otherwise, the field is inserted after the first matching anchor field
+ * from `insertAfter` (tried in order). Returns content unchanged if the
+ * field is absent and no anchor matches.
+ */
+export function updateField(
+  content: string,
+  fieldName: string,
+  value: string,
+  insertAfter?: string[],
+): string {
+  const tree = parseMarkdown(content);
+  const lines = content.split('\n');
+
+  // Try to find an existing list item with this field
+  const fieldLine = findFieldLine(tree, fieldName, lines);
+  if (fieldLine !== -1) {
+    lines[fieldLine] = `- **${fieldName}**: ${value}`;
+    return lines.join('\n');
+  }
+
+  // Field not found — try to insert after an anchor
+  if (insertAfter) {
+    for (const anchor of insertAfter) {
+      const anchorLine = findFieldLine(tree, anchor, lines);
+      if (anchorLine !== -1) {
+        lines.splice(anchorLine + 1, 0, `- **${fieldName}**: ${value}`);
+        return lines.join('\n');
+      }
+    }
+  }
+
+  return content;
+}
+
+function findFieldLine(tree: Root, fieldName: string, lines: string[]): number {
+  const escaped = escapeRegex(fieldName);
+  const pattern = new RegExp(`^-\\s+\\*\\*${escaped}\\*\\*:`);
+
+  let result = -1;
+  visit(tree, 'listItem', (node: ListItem) => {
+    if (result !== -1) return;
+    if (!node.position) return;
+    const lineIdx = node.position.start.line - 1; // 0-based
+    if (pattern.test(lines[lineIdx])) {
+      result = lineIdx;
+    }
+  });
+
+  return result;
+}
+
 export { parseMarkdown };
 
 function escapeRegex(str: string): string {

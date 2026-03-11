@@ -7,6 +7,7 @@ import {
   countListItemsInSection,
   extractSectionFirstParagraph,
   findSection,
+  updateField,
 } from '../core/markdown.js';
 
 describe('findSection', () => {
@@ -143,5 +144,100 @@ More text.
   it('returns empty string for missing section', () => {
     const tree = parseMarkdown('# Title');
     expect(extractSectionFirstParagraph(tree, 'Description')).toBe('');
+  });
+});
+
+describe('updateField', () => {
+  it('replaces an existing field value', () => {
+    const content = `# T-001: Test
+
+- **Status**: DONE
+- **Milestone**: 1 — Setup
+- **Commit**: old-sha
+
+## Description
+
+Test.
+`;
+    const result = updateField(content, 'Commit', 'new-sha');
+    expect(result).toContain('- **Commit**: new-sha');
+    expect(result).not.toContain('old-sha');
+  });
+
+  it('inserts a new field after the first matching anchor', () => {
+    const content = `# T-001: Test
+
+- **Status**: DONE
+- **Milestone**: 1 — Setup
+- **Completed**: 2026-03-10 12:00 (5m duration)
+
+## Description
+
+Test.
+`;
+    const result = updateField(content, 'Commit', 'abc1234', ['Completed', 'PRD Reference']);
+    expect(result).toContain('- **Commit**: abc1234');
+    const lines = result.split('\n');
+    const completedIdx = lines.findIndex((l) => l.includes('**Completed**'));
+    const commitIdx = lines.findIndex((l) => l.includes('**Commit**'));
+    expect(commitIdx).toBe(completedIdx + 1);
+  });
+
+  it('falls back to second anchor when first is missing', () => {
+    const content = `# T-001: Test
+
+- **Status**: DONE
+- **Milestone**: 1 — Setup
+- **PRD Reference**: §1
+
+## Description
+
+Test.
+`;
+    const result = updateField(content, 'Cost', '$1.50', ['Commit', 'Completed', 'PRD Reference']);
+    expect(result).toContain('- **Cost**: $1.50');
+    const lines = result.split('\n');
+    const prdIdx = lines.findIndex((l) => l.includes('**PRD Reference**'));
+    const costIdx = lines.findIndex((l) => l.includes('**Cost**'));
+    expect(costIdx).toBe(prdIdx + 1);
+  });
+
+  it('returns content unchanged when field not found and no anchors match', () => {
+    const content = `# T-001: Test
+
+## Description
+
+Test.
+`;
+    const result = updateField(content, 'Cost', '$1.50', ['NonExistent']);
+    expect(result).toBe(content);
+  });
+
+  it('returns content unchanged when field not found and no anchors given', () => {
+    const content = `# T-001: Test
+
+## Description
+
+Test.
+`;
+    const result = updateField(content, 'Cost', '$1.50');
+    expect(result).toBe(content);
+  });
+
+  it('preserves surrounding content when replacing', () => {
+    const content = `# T-001: Test
+
+- **Status**: DONE
+- **Cost**: $0.00
+- **Milestone**: 1 — Setup
+
+## Description
+
+Test.
+`;
+    const result = updateField(content, 'Cost', '$5.00');
+    expect(result).toContain('- **Status**: DONE');
+    expect(result).toContain('- **Cost**: $5.00');
+    expect(result).toContain('- **Milestone**: 1 — Setup');
   });
 });

@@ -2,20 +2,10 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { scanTasks, type Task } from '../core/tasks.js';
 import { findCommitByMessage } from '../core/git.js';
+import { updateField } from '../core/markdown.js';
 
 function updateCommitField(content: string, sha: string): string {
-  const commitRe = /^- \*\*Commit\*\*:\s*.+$/m;
-  if (commitRe.test(content)) {
-    return content.replace(commitRe, `- **Commit**: ${sha}`);
-  }
-  // Insert after Completed field
-  const completedRe = /^(- \*\*Completed\*\*:\s*.+)$/m;
-  if (completedRe.test(content)) {
-    return content.replace(completedRe, `$1\n- **Commit**: ${sha}`);
-  }
-  // Insert after PRD Reference as fallback
-  const prdRe = /^(- \*\*PRD Reference\*\*:\s*.+)$/m;
-  return content.replace(prdRe, `$1\n- **Commit**: ${sha}`);
+  return updateField(content, 'Commit', sha, ['Completed', 'PRD Reference']);
 }
 
 export async function run(args: string[], cwd?: string): Promise<void> {
