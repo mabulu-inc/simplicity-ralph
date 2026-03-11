@@ -180,6 +180,26 @@ describe('interpolateTemplate', () => {
     const result = interpolateTemplate(template, mockTask, mockConfig);
     expect(result).toBe('Index: []');
   });
+
+  it('replaces {{retryContext}} with provided retry context', () => {
+    const template = 'Retry:\n{{retryContext}}';
+    const result = interpolateTemplate(
+      template,
+      mockTask,
+      mockConfig,
+      '',
+      '',
+      '',
+      'RETRY CONTEXT: failed at Verify',
+    );
+    expect(result).toBe('Retry:\nRETRY CONTEXT: failed at Verify');
+  });
+
+  it('replaces {{retryContext}} with empty string when not provided', () => {
+    const template = 'Retry: [{{retryContext}}]';
+    const result = interpolateTemplate(template, mockTask, mockConfig);
+    expect(result).toBe('Retry: []');
+  });
 });
 
 describe('loadAndInterpolate', () => {
@@ -285,5 +305,27 @@ describe('loadAndInterpolate', () => {
 
     const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
     expect(result).toBe('Index: []');
+  });
+
+  it('injects retry context as {{retryContext}} when provided', async () => {
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'boot.md'),
+      'Task {{task.id}}\nRetry: {{retryContext}}',
+    );
+
+    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig, 'RETRY: Verify failed');
+    expect(result).toContain('RETRY: Verify failed');
+  });
+
+  it('resolves {{retryContext}} to empty string on first attempt', async () => {
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'boot.md'),
+      'Task {{task.id}}\nRetry: [{{retryContext}}]',
+    );
+
+    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
+    expect(result).toContain('Retry: []');
   });
 });

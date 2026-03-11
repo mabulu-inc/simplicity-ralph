@@ -29,6 +29,7 @@ import * as gitModule from '../core/git.js';
 import { LoopOrchestrator } from '../commands/loop/orchestrator.js';
 import type { LoopOptions } from '../commands/loop/index.js';
 import { registerProvider, resetRegistry, type AgentProvider } from '../core/agent-provider.js';
+import { resetProviderInit } from '../providers/index.js';
 
 const spawnWithCapture = vi.mocked(processModule.spawnWithCapture);
 const monitorProcess = vi.mocked(processModule.monitorProcess);
@@ -54,7 +55,7 @@ describe('LoopOrchestrator', () => {
     await writeFile(join(tmpDir, 'docs', 'tasks', 'T-001.md'), taskContent);
     await writeFile(
       join(tmpDir, 'docs', 'prompts', 'boot.md'),
-      'Task {{task.id}}: {{task.title}}\nConfig: {{config.language}}',
+      'Task {{task.id}}: {{task.title}}\nConfig: {{config.language}}\n{{retryContext}}',
     );
   }
 
@@ -115,7 +116,10 @@ describe('LoopOrchestrator', () => {
     await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
     await mkdir(join(tmpDir, '.claude'), { recursive: true });
     await writeFile(join(tmpDir, '.claude', 'CLAUDE.md'), CLAUDE_MD);
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Task {{task.id}}: {{task.title}}');
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'boot.md'),
+      'Task {{task.id}}: {{task.title}}\n{{retryContext}}',
+    );
     await writeFile(
       join(tmpDir, 'docs', 'tasks', 'T-002.md'),
       `# T-002: Blocked task\n\n- **Status**: TODO\n- **Milestone**: 1 — Setup\n- **Depends**: T-001\n- **PRD Reference**: §1\n\n## Description\n\nA blocked task.\n`,
@@ -364,5 +368,88 @@ describe('LoopOrchestrator', () => {
     expect(() => new LoopOrchestrator(tmpDir, defaultOpts({ agent: 'unknown' }))).toThrow(
       'Unknown agent provider: unknown',
     );
+  });
+
+  it('injects retry context when a task is retried after failure', async () => {
+    resetRegistry();
+    resetProviderInit();
+    await setupProject();
+    mockChildProcess();
+
+    // First iteration: non-zero exit (failure)
+    // Second iteration: success
+    monitorProcess
+      .mockResolvedValueOnce({ exitCode: 1, timedOut: false })
+      .mockResolvedValueOnce({ exitCode: 0, timedOut: false });
+
+    // Create a log file that simulates the failed first attempt
+    const logsDir = join(tmpDir, '.ralph-logs');
+    await mkdir(logsDir, { recursive: true });
+    const logContent = [
+      JSON.stringify({
+        type: 'assistant',
+        message: { content: [{ type: 'text', text: '[PHASE] Entering: Verify' }] },
+      }),
+      JSON.stringify({
+        type: 'result',
+        subtype: 'tool_result',
+        tool_name: 'Bash',
+        content: 'Error: test failed badly',
+      }),
+    ].join('\n');
+    await writeFile(join(logsDir, 'T-001-20250101-120000.jsonl'), logContent);
+
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts({ iterations: 2 }));
+    await orchestrator.execute();
+
+    // The second spawn call should have a prompt containing retry context
+    expect(spawnWithCapture).toHaveBeenCalledTimes(2);
+    const secondCallArgs = spawnWithCapture.mock.calls[1][1] as string[];
+    const allArgs = secondCallArgs.join(' ');
+    expect(allArgs).toContain('Verify');
+  });
+
+  it('does not inject retry context on first attempt', async () => {
+    resetRegistry();
+    resetProviderInit();
+    await setupProject();
+    mockChildProcess();
+    monitorProcess.mockResolvedValue({ exitCode: 0, timedOut: false });
+
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts());
+    await orchestrator.execute();
+
+    const calledArgs = spawnWithCapture.mock.calls[0][1] as string[];
+    const allArgs = calledArgs.join(' ');
+    expect(allArgs).not.toContain('RETRY CONTEXT');
+  });
+
+  it('injects retry context on timeout failure', async () => {
+    resetRegistry();
+    resetProviderInit();
+    await setupProject();
+    mockChildProcess();
+
+    monitorProcess
+      .mockResolvedValueOnce({ exitCode: null, timedOut: true })
+      .mockResolvedValueOnce({ exitCode: 0, timedOut: false });
+
+    const logsDir = join(tmpDir, '.ralph-logs');
+    await mkdir(logsDir, { recursive: true });
+    const logContent = [
+      JSON.stringify({
+        type: 'assistant',
+        message: { content: [{ type: 'text', text: '[PHASE] Entering: Green' }] },
+      }),
+    ].join('\n');
+    await writeFile(join(logsDir, 'T-001-20250101-120000.jsonl'), logContent);
+
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts({ iterations: 2, timeout: 60 }));
+    await orchestrator.execute();
+
+    expect(spawnWithCapture).toHaveBeenCalledTimes(2);
+    const secondCallArgs = spawnWithCapture.mock.calls[1][1] as string[];
+    const allArgs = secondCallArgs.join(' ');
+    expect(allArgs).toContain('Green');
   });
 });

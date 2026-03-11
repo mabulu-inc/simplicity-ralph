@@ -12,6 +12,7 @@ export function interpolateTemplate(
   projectRules = '',
   prdContent = '',
   codebaseIndex = '',
+  retryContext = '',
 ): string {
   const vars: Record<string, string> = {
     'task.id': task.id,
@@ -30,6 +31,7 @@ export function interpolateTemplate(
     'config.database': config.database ?? '',
     'project.rules': projectRules,
     codebaseIndex,
+    retryContext,
   };
 
   return template.replace(/\{\{(\w+(?:\.\w+)?)\}\}/g, (match, key: string) => {
@@ -41,6 +43,7 @@ export async function loadAndInterpolate(
   projectDir: string,
   task: Task,
   config: ProjectConfig,
+  retryContext = '',
 ): Promise<string> {
   const templatePath = join(projectDir, 'docs', 'prompts', 'boot.md');
   let template: string;
@@ -74,5 +77,13 @@ export async function loadAndInterpolate(
 
   const codebaseIndex = await generateCodebaseIndex(projectDir, config.language, task.touches);
 
-  return interpolateTemplate(template, task, config, projectRules, prdContent, codebaseIndex);
+  return interpolateTemplate(
+    template,
+    task,
+    config,
+    projectRules,
+    prdContent,
+    codebaseIndex,
+    retryContext,
+  );
 }

@@ -7,6 +7,7 @@ import { ensureProvidersRegistered } from '../../providers/index.js';
 import { spawnWithCapture, monitorProcess } from '../../core/process.js';
 import { writePidFile, removePidFile } from '../../core/pid-file.js';
 import { loadAndInterpolate } from '../../core/prompt-template.js';
+import { buildRetryContext } from '../../core/retry-context.js';
 import { LoopGitService } from './git-service.js';
 import { scaleForComplexity, type LoopOptions } from './index.js';
 
@@ -42,6 +43,8 @@ export class LoopOrchestrator {
   }
 
   private async executeLoop(config: Awaited<ReturnType<typeof readConfig>>): Promise<void> {
+    let lastFailedTaskId: string | undefined;
+
     for (
       let iteration = 1;
       this.opts.iterations === 0 || iteration <= this.opts.iterations;
@@ -85,7 +88,12 @@ export class LoopOrchestrator {
       }
       const headBefore = headBeforeResult.sha;
 
-      const prompt = await loadAndInterpolate(this.projectDir, nextTask, config);
+      let retryContext = '';
+      if (lastFailedTaskId === nextTask.id) {
+        retryContext = await buildRetryContext(this.logsDir, nextTask.id);
+      }
+
+      const prompt = await loadAndInterpolate(this.projectDir, nextTask, config, retryContext);
 
       const now = new Date();
       const timestamp = [
@@ -125,11 +133,13 @@ export class LoopOrchestrator {
 
       if (result.timedOut) {
         console.error(`[Iteration ${iteration}] Timed out after ${effectiveTimeout}s`);
+        lastFailedTaskId = nextTask.id;
         continue;
       }
 
       if (result.exitCode !== 0) {
         console.error(`[Iteration ${iteration}] Claude exited with code ${result.exitCode}`);
+        lastFailedTaskId = nextTask.id;
         continue;
       }
 
@@ -143,6 +153,9 @@ export class LoopOrchestrator {
 
       if (headBefore && headAfter && headBefore !== headAfter) {
         console.log(`[Iteration ${iteration}] Commit detected: ${headAfter.slice(0, 7)}`);
+        lastFailedTaskId = undefined;
+      } else {
+        lastFailedTaskId = nextTask.id;
       }
 
       if (this.opts.push) {
