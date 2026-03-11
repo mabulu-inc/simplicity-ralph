@@ -18,7 +18,7 @@
     "test:coverage": "vitest run --coverage",
     "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm build && pnpm test:coverage",
     "milestones": "bash scripts/update-milestones.sh",
-    "ralph": "bash scripts/ralph.sh",
+    "ralph": "npx @simplicity/ralph loop",
     "ralph:evolve": "bash scripts/ralph-evolve.sh",
     "ralph:reinit": "bash scripts/ralph-reinit.sh",
     "ralph:kill": "bash scripts/ralph-kill.sh",

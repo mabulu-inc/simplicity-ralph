@@ -1,0 +1,8 @@
+{
+  "language": "TypeScript",
+  "packageManager": "pnpm",
+  "testingFramework": "Vitest",
+  "qualityCheck": "pnpm check",
+  "testCommand": "pnpm test",
+  "agent": "claude"
+}

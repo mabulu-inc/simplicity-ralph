@@ -56,7 +56,7 @@ When a task is completed, update in the same commit:
 
 ## 2. Project Configuration
 
-Ralph reads project configuration from a `ralph.config.json` file at the project root and from the active agent's instructions file.
+Ralph reads project configuration from a `ralph.config.json` file at the project root. This is the single source of truth for all structured config — agent instructions files contain only a project goal and methodology pointer, not config values.
 
 ### 2.1 Required Config Fields
 
@@ -99,8 +99,9 @@ Interactive project bootstrapper. Prompts for project configuration, then create
 - `docs/RALPH-METHODOLOGY.md` — full methodology reference
 - `docs/tasks/T-000.md` — infrastructure bootstrap task
 - `docs/prompts/boot.md` — the default boot prompt template (see §5)
+- `docs/prompts/rules.md` — user-editable project-specific rules included in the boot prompt (see §5.9)
 - `ralph.config.json` — project configuration including agent selection
-- Agent instructions file (e.g., `.claude/CLAUDE.md`, `GEMINI.md`, `AGENTS.md`) — populated with project-specific config for the selected agent
+- Agent instructions file (e.g., `.claude/CLAUDE.md`, `GEMINI.md`, `AGENTS.md`) — minimal stub with project goal and methodology pointer (no config duplication)
 
 **Behavior:**
 
@@ -286,6 +287,7 @@ The template supports variable interpolation using `{{variable}}` syntax. Ralph 
 | `{{task.touches}}`            | Comma-separated file paths from the Touches field (blank if unset) |
 | `{{task.hints}}`              | Content of the task's Hints section (blank if no Hints section)    |
 | `{{task.prdContent}}`         | Extracted PRD section content matching the task's PRD Reference    |
+| `{{project.rules}}`           | Contents of `docs/prompts/rules.md` (see §5.9)                     |
 | `{{codebaseIndex}}`           | Auto-generated file/export index (see §5.5)                        |
 | `{{retryContext}}`            | Context from a previous failed attempt, if any (see §5.6)          |
 
@@ -335,6 +337,7 @@ As the codebase and prompt grow, the boot prompt should be split into layers to 
 | ------------ | --------------------------------------------------------------- | ----------------------------------------- |
 | **System**   | TDD methodology, tool usage rules, commit format, quality gates | Stable across all iterations (cacheable)  |
 | **Project**  | Config values, file naming, quality commands                    | Stable across iterations (cacheable)      |
+| **Rules**    | Project-specific rules from `docs/prompts/rules.md`             | Stable across iterations (cacheable)      |
 | **Codebase** | Auto-generated file/export index                                | Changes only when files are added/removed |
 | **Task**     | Task description, PRD section content, touches, hints           | Changes per task                          |
 | **Retry**    | Previous failure context                                        | Only present on retries                   |
@@ -362,6 +365,16 @@ The default boot prompt template must include explicit guidance to prevent the a
   - After running formatters, re-read modified files — formatting may change code.
   - Write semantic test assertions, not string-matching against prompt text.
   - Do not amend commits to add the SHA — leave it for the loop's post-iteration handling.
+
+### 5.9 Project-Specific Rules
+
+Project-specific rules and constraints live in `docs/prompts/rules.md`, a user-editable Markdown file. This file is the place for instructions like "all code goes under `src/foo/`", "do not use library X", or "tests go in `__tests__/`" — rules that apply to every task but are specific to the project, not to the methodology or the agent.
+
+At prompt build time, ralph reads `docs/prompts/rules.md` and injects its contents as the `{{project.rules}}` template variable. If the file does not exist or is empty, the variable resolves to an empty string.
+
+`ralph init` generates a default `docs/prompts/rules.md` with a brief comment explaining its purpose and a few example rules. Users edit this file to add their project's conventions.
+
+This keeps agent instructions files (`.claude/CLAUDE.md`, `GEMINI.md`, etc.) thin — they contain only a project goal and a pointer to the methodology. All behavioral rules flow through the prompt template, which is agent-agnostic.
 
 ## 6. Quality Gates
 
