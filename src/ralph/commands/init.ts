@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as readline from 'node:readline';
 
 import { generateClaudeMd, type InitConfig } from '../templates/claude-md.js';
+import { generateGeminiMd } from '../templates/gemini-md.js';
 import { generateMethodology } from '../templates/methodology.js';
 import { generatePrd } from '../templates/prd.js';
 import { generateTask000 } from '../templates/task-000.js';
@@ -17,6 +18,7 @@ export interface InitAnswers {
   testCommand: string;
   database: string;
   fileNaming?: string;
+  agent?: string;
   overwrite?: boolean;
 }
 
@@ -102,7 +104,12 @@ export async function runInit(rootDir: string, answers: InitAnswers): Promise<In
   await writeFile(rootDir, 'docs/PRD.md', generatePrd(config.projectName), overwrite, result);
   await writeFile(rootDir, 'docs/RALPH-METHODOLOGY.md', generateMethodology(), overwrite, result);
   await writeFile(rootDir, 'docs/tasks/T-000.md', generateTask000(config), overwrite, result);
-  await writeFile(rootDir, '.claude/CLAUDE.md', generateClaudeMd(config), overwrite, result);
+  const agent = answers.agent ?? 'claude';
+  if (agent === 'gemini') {
+    await writeFile(rootDir, 'GEMINI.md', generateGeminiMd(config), overwrite, result);
+  } else {
+    await writeFile(rootDir, '.claude/CLAUDE.md', generateClaudeMd(config), overwrite, result);
+  }
   await writeFile(rootDir, 'docs/prompts/boot.md', defaultBootPromptTemplate(), overwrite, result);
 
   await updatePackageJson(rootDir, answers);

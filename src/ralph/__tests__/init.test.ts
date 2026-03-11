@@ -169,6 +169,73 @@ describe('runInit', () => {
   });
 });
 
+describe('runInit with gemini agent', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  it('creates GEMINI.md when agent is gemini', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, agent: 'gemini' };
+    const result = await runInit(tmpDir, answers);
+    const filePath = path.join(tmpDir, 'GEMINI.md');
+    expect(fs.existsSync(filePath)).toBe(true);
+    expect(result.created).toContain('GEMINI.md');
+  });
+
+  it('does not create .claude/CLAUDE.md when agent is gemini', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, agent: 'gemini' };
+    await runInit(tmpDir, answers);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'CLAUDE.md'))).toBe(false);
+  });
+
+  it('creates .claude/CLAUDE.md by default (no agent specified)', async () => {
+    await runInit(tmpDir, defaultAnswers);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'CLAUDE.md'))).toBe(true);
+  });
+
+  it('creates .claude/CLAUDE.md when agent is claude', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, agent: 'claude' };
+    await runInit(tmpDir, answers);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'CLAUDE.md'))).toBe(true);
+  });
+
+  it('GEMINI.md contains project name and config', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, agent: 'gemini' };
+    await runInit(tmpDir, answers);
+    const content = fs.readFileSync(path.join(tmpDir, 'GEMINI.md'), 'utf-8');
+    expect(content).toContain('# test-app');
+    expect(content).toContain('**Language**: TypeScript');
+  });
+
+  it('GEMINI.md includes file naming when provided', async () => {
+    const answers: InitAnswers = {
+      ...defaultAnswers,
+      agent: 'gemini',
+      fileNaming: 'kebab-case',
+    };
+    await runInit(tmpDir, answers);
+    const content = fs.readFileSync(path.join(tmpDir, 'GEMINI.md'), 'utf-8');
+    expect(content).toContain('**File naming**: kebab-case');
+  });
+
+  it('GEMINI.md includes database when not "none"', async () => {
+    const answers: InitAnswers = {
+      ...defaultAnswers,
+      agent: 'gemini',
+      database: 'PostgreSQL',
+    };
+    await runInit(tmpDir, answers);
+    const content = fs.readFileSync(path.join(tmpDir, 'GEMINI.md'), 'utf-8');
+    expect(content).toContain('**Database**: PostgreSQL');
+  });
+});
+
 describe('run (CLI entry point)', () => {
   it('exports a run function', async () => {
     const mod = await import('../commands/init.js');
