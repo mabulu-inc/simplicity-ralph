@@ -274,6 +274,7 @@ async function promptForAnswers(defaults: Partial<InitAnswers>): Promise<InitAns
   try {
     const projectName = await prompt(rl, 'Project name', defaults.projectName);
     const language = await prompt(rl, 'Language', defaults.language ?? 'TypeScript');
+    const fileNaming = await prompt(rl, 'File naming convention', defaults.fileNaming ?? '');
     const packageManager = await prompt(rl, 'Package manager', defaults.packageManager ?? 'pnpm');
     const testingFramework = await prompt(
       rl,
@@ -301,6 +302,7 @@ async function promptForAnswers(defaults: Partial<InitAnswers>): Promise<InitAns
     return {
       projectName,
       language,
+      fileNaming: fileNaming || undefined,
       packageManager,
       testingFramework,
       qualityCheck,

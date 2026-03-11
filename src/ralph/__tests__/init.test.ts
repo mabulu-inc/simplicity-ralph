@@ -517,6 +517,39 @@ describe('loadExistingDefaults', () => {
   });
 });
 
+describe('promptForAnswers includes fileNaming', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  it('fileNaming from answers flows into ralph.config.json', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, fileNaming: 'snake_case' };
+    await runInit(tmpDir, answers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.fileNaming).toBe('snake_case');
+  });
+
+  it('fileNaming from answers flows into rules.md', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, fileNaming: 'camelCase' };
+    await runInit(tmpDir, answers);
+    const rules = fs.readFileSync(path.join(tmpDir, 'docs', 'prompts', 'rules.md'), 'utf-8');
+    expect(rules).toContain('camelCase');
+  });
+
+  it('empty fileNaming is omitted from config', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, fileNaming: '' };
+    await runInit(tmpDir, answers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.fileNaming).toBeUndefined();
+  });
+});
+
 describe('run (CLI entry point)', () => {
   it('exports a run function', async () => {
     const mod = await import('../commands/init.js');
