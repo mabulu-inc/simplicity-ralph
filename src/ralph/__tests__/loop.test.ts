@@ -52,7 +52,6 @@ describe('parseLoopOptions', () => {
       verbose: false,
       dryRun: false,
       push: true,
-      db: true,
       agent: 'claude',
     });
   });
@@ -85,10 +84,6 @@ describe('parseLoopOptions', () => {
     expect(parseLoopOptions(['--no-push']).push).toBe(false);
   });
 
-  it('parses --no-db', () => {
-    expect(parseLoopOptions(['--no-db']).db).toBe(false);
-  });
-
   it('parses -m / --max-turns', () => {
     expect(parseLoopOptions(['-m', '50']).maxTurns).toBe(50);
     expect(parseLoopOptions(['--max-turns', '100']).maxTurns).toBe(100);
@@ -114,7 +109,6 @@ describe('parseLoopOptions', () => {
       verbose: true,
       dryRun: true,
       push: false,
-      db: true,
       agent: 'claude',
     });
   });

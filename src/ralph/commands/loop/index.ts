@@ -17,7 +17,6 @@ export interface LoopOptions {
   verbose: boolean;
   dryRun: boolean;
   push: boolean;
-  db: boolean;
   agent: string;
 }
 
@@ -47,7 +46,6 @@ export function parseLoopOptions(args: string[]): LoopOptions {
     verbose: false,
     dryRun: false,
     push: true,
-    db: true,
     agent: 'claude',
   };
 
@@ -79,9 +77,6 @@ export function parseLoopOptions(args: string[]): LoopOptions {
         break;
       case '--no-push':
         opts.push = false;
-        break;
-      case '--no-db':
-        opts.db = false;
         break;
       case '-a':
       case '--agent':
@@ -133,7 +128,6 @@ function formatDryRunConfig(
     `  complexity tier: ${scaling.tier}`,
     `  verbose: ${opts.verbose}`,
     `  push: ${opts.push}`,
-    `  db: ${opts.db}`,
     '',
     'Project config:',
     `  language: ${config.language}`,
