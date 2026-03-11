@@ -263,7 +263,34 @@ Ralph enforces these quality gates via the boot prompt:
 - Never discard staged changes — only unstaged changes from crashed iterations
 - Clean shutdown on Ctrl+C
 
-## 8. Non-Goals
+## 8. Robustness & Configuration
+
+### 8.1 Structured Parsing
+
+Task file and config parsing must not rely on brittle regex patterns that break on minor formatting variations. Use a proper Markdown parser (e.g., `unified`/`remark`) or extract structured data from frontmatter to make parsing resilient to whitespace, bold syntax variations, and other Markdown-level changes.
+
+### 8.2 Externalized Configuration
+
+Operational parameters that change independently of code must be configurable without rebuilding:
+
+- **API Pricing** — token prices used by `ralph cost` (currently hardcoded in `commands/cost.ts`)
+- **Complexity Tiers** — scaling thresholds and limits used by `ralph loop` (currently hardcoded in `commands/loop.ts`)
+
+These should be overridable via a config file (e.g., `ralph.config.json` or a section in `.claude/CLAUDE.md`) or environment variables, with sensible defaults baked in.
+
+### 8.3 Process Tree Termination
+
+`killProcessTree` must actually traverse and terminate the full process tree. The current implementation sends signals to a single PID without walking child processes. Use process group IDs (`-pid`) or a library like `tree-kill` to ensure spawned compilers, test runners, and other children are cleaned up.
+
+### 8.4 Error Visibility
+
+Silent error suppression in the loop and git operations must be eliminated. All errors should be logged to stderr or to `.ralph-logs/` so users can diagnose failures. A loop iteration that fails silently and continues is worse than one that fails loudly.
+
+### 8.5 Git Remote & Branch Configuration
+
+The tool must not hardcode `origin` and `main` as the git remote and branch. These should be auto-detected from the current repository or configurable in project settings.
+
+## 9. Non-Goals
 
 - Ralph does NOT manage or install Claude Code — it assumes `claude` CLI is available
 - Ralph does NOT handle CI/CD — it's a local development tool
