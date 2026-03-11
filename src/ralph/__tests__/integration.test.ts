@@ -14,6 +14,7 @@ import {
   formatMonitorOutput,
   detectStatus,
   type MonitorData,
+  type PhaseTimestamp,
 } from '../commands/monitor.js';
 import { dispatch, formatHelp } from '../cli.js';
 import { scanTasks } from '../core/tasks.js';
@@ -355,7 +356,12 @@ describe('integration: ralph monitor renders status correctly', () => {
       total: 10,
       currentTaskId: 'T-006',
       currentTaskTitle: 'Build feature X',
-      phases: ['Boot', 'Red', 'Green'],
+      phaseTimestamps: [
+        { phase: 'Boot', startedAt: null },
+        { phase: 'Red', startedAt: null },
+        { phase: 'Green', startedAt: null },
+      ],
+      lastLogLine: null,
     };
 
     const output = formatMonitorOutput(data);
@@ -384,7 +390,8 @@ describe('integration: ralph monitor renders status correctly', () => {
     const phases = parsePhases(logContent);
     expect(phases).toEqual(['Boot', 'Red', 'Green']);
 
-    const timeline = formatPhaseTimeline(phases);
+    const phaseTimestamps: PhaseTimestamp[] = phases.map((p) => ({ phase: p, startedAt: null }));
+    const timeline = formatPhaseTimeline(phaseTimestamps);
     expect(timeline).toContain('● Boot');
     expect(timeline).toContain('● Red');
     expect(timeline).toContain('● Green');

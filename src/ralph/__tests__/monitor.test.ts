@@ -4,8 +4,10 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   parsePhases,
+  parseAllPhases,
   formatPhaseTimeline,
   formatProgressBar,
+  formatDuration,
   detectStatus,
   findLatestLogFile,
   extractTaskIdFromLog,
@@ -16,8 +18,10 @@ import {
   parseCurrentPhase,
   parseLastLogLine,
   readLogTail,
+  scanLogForPhases,
   formatElapsed,
   type RunResult,
+  type PhaseTimestamp,
 } from '../commands/monitor.js';
 
 describe('parsePhases', () => {
@@ -45,9 +49,118 @@ describe('parsePhases', () => {
   });
 });
 
+describe('parseAllPhases', () => {
+  it('extracts all phases with timestamps from JSONL content', () => {
+    const content = [
+      '{"type":"text","text":"[PHASE] Entering: Boot","timestamp":"2026-03-10T12:00:00Z"}',
+      '{"type":"text","text":"doing boot things"}',
+      '{"type":"text","text":"[PHASE] Entering: Red","timestamp":"2026-03-10T12:00:45Z"}',
+      '{"type":"text","text":"[PHASE] Entering: Green","timestamp":"2026-03-10T12:02:00Z"}',
+    ].join('\n');
+    const result = parseAllPhases(content);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ phase: 'Boot', startedAt: new Date('2026-03-10T12:00:00Z') });
+    expect(result[1]).toEqual({ phase: 'Red', startedAt: new Date('2026-03-10T12:00:45Z') });
+    expect(result[2]).toEqual({ phase: 'Green', startedAt: new Date('2026-03-10T12:02:00Z') });
+  });
+
+  it('returns empty array when no phases found', () => {
+    expect(parseAllPhases('no phases here')).toEqual([]);
+  });
+
+  it('handles phases without timestamps', () => {
+    const content = '{"type":"text","text":"[PHASE] Entering: Boot"}\n';
+    const result = parseAllPhases(content);
+    expect(result).toHaveLength(1);
+    expect(result[0].phase).toBe('Boot');
+    expect(result[0].startedAt).toBeNull();
+  });
+
+  it('handles plain text lines with phase markers', () => {
+    const content = '[PHASE] Entering: Verify\n[PHASE] Entering: Commit\n';
+    const result = parseAllPhases(content);
+    expect(result).toHaveLength(2);
+    expect(result[0].phase).toBe('Verify');
+    expect(result[1].phase).toBe('Commit');
+  });
+});
+
+describe('formatDuration', () => {
+  it('formats seconds only', () => {
+    expect(formatDuration(45_000)).toBe('45s');
+  });
+
+  it('formats minutes and seconds', () => {
+    expect(formatDuration(72_000)).toBe('1m 12s');
+  });
+
+  it('formats exact minutes', () => {
+    expect(formatDuration(120_000)).toBe('2m 0s');
+  });
+
+  it('formats hours', () => {
+    expect(formatDuration(3_661_000)).toBe('1h 1m');
+  });
+
+  it('formats zero', () => {
+    expect(formatDuration(0)).toBe('0s');
+  });
+
+  it('formats sub-second as 0s', () => {
+    expect(formatDuration(500)).toBe('0s');
+  });
+});
+
+describe('scanLogForPhases', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'ralph-scan-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('reads full log file to find all phase markers', async () => {
+    const lines = [
+      '{"type":"text","text":"[PHASE] Entering: Boot","timestamp":"2026-03-10T12:00:00Z"}',
+      ...Array.from({ length: 500 }, (_, i) => `{"type":"text","text":"line ${i}"}`),
+      '{"type":"text","text":"[PHASE] Entering: Red","timestamp":"2026-03-10T12:01:00Z"}',
+      ...Array.from({ length: 500 }, (_, i) => `{"type":"text","text":"more ${i}"}`),
+      '{"type":"text","text":"[PHASE] Entering: Green","timestamp":"2026-03-10T12:02:00Z"}',
+    ];
+    const logPath = join(dir, 'test.jsonl');
+    await writeFile(logPath, lines.join('\n'));
+
+    const result = await scanLogForPhases(logPath);
+    expect(result).toHaveLength(3);
+    expect(result[0].phase).toBe('Boot');
+    expect(result[1].phase).toBe('Red');
+    expect(result[2].phase).toBe('Green');
+  });
+
+  it('returns empty array for nonexistent file', async () => {
+    const result = await scanLogForPhases(join(dir, 'nope.jsonl'));
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array for file with no phases', async () => {
+    const logPath = join(dir, 'empty.jsonl');
+    await writeFile(logPath, '{"type":"text","text":"no phases"}\n');
+    const result = await scanLogForPhases(logPath);
+    expect(result).toEqual([]);
+  });
+});
+
 describe('formatPhaseTimeline', () => {
   it('renders all phases with markers for completed ones', () => {
-    const result = formatPhaseTimeline(['Boot', 'Red', 'Green']);
+    const phases: PhaseTimestamp[] = [
+      { phase: 'Boot', startedAt: null },
+      { phase: 'Red', startedAt: null },
+      { phase: 'Green', startedAt: null },
+    ];
+    const result = formatPhaseTimeline(phases);
     expect(result).toContain('Boot');
     expect(result).toContain('Red');
     expect(result).toContain('Green');
@@ -56,19 +169,57 @@ describe('formatPhaseTimeline', () => {
   });
 
   it('marks completed phases differently from pending ones', () => {
-    const result = formatPhaseTimeline(['Boot', 'Red']);
-    // Completed phases should have a filled marker
+    const phases: PhaseTimestamp[] = [
+      { phase: 'Boot', startedAt: null },
+      { phase: 'Red', startedAt: null },
+    ];
+    const result = formatPhaseTimeline(phases);
     expect(result).toMatch(/[●✓].*Boot/);
     expect(result).toMatch(/[●✓].*Red/);
-    // Pending phases should have an empty marker
     expect(result).toMatch(/[○·].*Green/);
   });
 
   it('renders empty timeline when no phases', () => {
     const result = formatPhaseTimeline([]);
-    // All phases should be pending
     expect(result).toContain('Boot');
     expect(result).toContain('Commit');
+  });
+
+  it('shows durations for completed phases with timestamps', () => {
+    const phases: PhaseTimestamp[] = [
+      { phase: 'Boot', startedAt: new Date('2026-03-10T12:00:00Z') },
+      { phase: 'Red', startedAt: new Date('2026-03-10T12:00:45Z') },
+      { phase: 'Green', startedAt: new Date('2026-03-10T12:01:57Z') },
+    ];
+    const result = formatPhaseTimeline(phases);
+    // Boot took 45s (from Boot start to Red start)
+    expect(result).toContain('Boot (45s)');
+    // Red took 1m 12s (from Red start to Green start)
+    expect(result).toContain('Red (1m 12s)');
+    // Green is the active phase — no duration shown here (live timer handled separately)
+  });
+
+  it('shows live timer on active phase', () => {
+    const thirtySecondsAgo = new Date(Date.now() - 30_000);
+    const phases: PhaseTimestamp[] = [
+      { phase: 'Boot', startedAt: new Date(Date.now() - 75_000) },
+      { phase: 'Red', startedAt: thirtySecondsAgo },
+    ];
+    const result = formatPhaseTimeline(phases);
+    // Active phase (last one) should show a live duration
+    expect(result).toMatch(/Red \(\d+s\)/);
+  });
+
+  it('handles phases without timestamps gracefully', () => {
+    const phases: PhaseTimestamp[] = [
+      { phase: 'Boot', startedAt: null },
+      { phase: 'Red', startedAt: null },
+    ];
+    const result = formatPhaseTimeline(phases);
+    // Should not crash, just show without durations
+    expect(result).toContain('● Boot');
+    expect(result).toContain('● Red');
+    expect(result).not.toMatch(/Boot \(/);
   });
 });
 
@@ -299,8 +450,10 @@ describe('formatMonitorOutput', () => {
       total: 10,
       currentTaskId: 'T-006',
       currentTaskTitle: 'Monitor command',
-      phases: ['Boot', 'Red'],
-      currentPhaseStarted: null,
+      phaseTimestamps: [
+        { phase: 'Boot', startedAt: null },
+        { phase: 'Red', startedAt: null },
+      ],
       lastLogLine: null,
     });
     expect(output).toContain('RUNNING');
@@ -310,50 +463,52 @@ describe('formatMonitorOutput', () => {
     expect(output).toContain('Boot');
   });
 
-  it('formats display with no current task', () => {
+  it('formats display with no current task when STOPPED', () => {
     const output = formatMonitorOutput({
       status: 'STOPPED',
       done: 10,
       total: 10,
       currentTaskId: null,
       currentTaskTitle: null,
-      phases: [],
-      currentPhaseStarted: null,
+      phaseTimestamps: [],
       lastLogLine: null,
     });
     expect(output).toContain('STOPPED');
     expect(output).toContain('10/10');
-    expect(output).not.toContain('Phase');
+    // STOPPED with no phases should not show the timeline
+    expect(output).not.toContain('Phases');
   });
 
-  it('shows current phase with elapsed time', () => {
-    const twoMinutesAgo = new Date(Date.now() - 135_000);
+  it('always shows phase timeline when RUNNING even with no phases', () => {
     const output = formatMonitorOutput({
       status: 'RUNNING',
       done: 3,
       total: 10,
       currentTaskId: 'T-004',
       currentTaskTitle: 'Some task',
-      phases: ['Boot', 'Red', 'Green'],
-      currentPhaseStarted: twoMinutesAgo,
+      phaseTimestamps: [],
       lastLogLine: null,
     });
-    expect(output).toContain('Current phase: Green');
-    expect(output).toMatch(/\d+[ms].*ago/);
+    // Should show all phases as empty when RUNNING
+    expect(output).toContain('Phases:');
+    expect(output).toContain('○ Boot');
+    expect(output).toContain('○ Commit');
   });
 
-  it('shows current phase without time when timestamp is null', () => {
+  it('does not have a separate Current phase line', () => {
     const output = formatMonitorOutput({
       status: 'RUNNING',
       done: 3,
       total: 10,
       currentTaskId: 'T-004',
       currentTaskTitle: 'Some task',
-      phases: ['Boot', 'Red'],
-      currentPhaseStarted: null,
+      phaseTimestamps: [
+        { phase: 'Boot', startedAt: new Date(Date.now() - 60_000) },
+        { phase: 'Red', startedAt: new Date(Date.now() - 30_000) },
+      ],
       lastLogLine: null,
     });
-    expect(output).not.toContain('Current phase');
+    expect(output).not.toContain('Current phase:');
   });
 
   it('shows last log line', () => {
@@ -363,8 +518,7 @@ describe('formatMonitorOutput', () => {
       total: 10,
       currentTaskId: 'T-004',
       currentTaskTitle: 'Some task',
-      phases: ['Boot'],
-      currentPhaseStarted: null,
+      phaseTimestamps: [{ phase: 'Boot', startedAt: null }],
       lastLogLine: 'Writing test file...',
     });
     expect(output).toContain('Last output: Writing test file...');
@@ -377,8 +531,7 @@ describe('formatMonitorOutput', () => {
       total: 10,
       currentTaskId: 'T-004',
       currentTaskTitle: 'Some task',
-      phases: ['Boot'],
-      currentPhaseStarted: null,
+      phaseTimestamps: [{ phase: 'Boot', startedAt: null }],
       lastLogLine: null,
     });
     expect(output).not.toContain('Last output');
@@ -492,7 +645,7 @@ describe('ralph monitor (run)', () => {
     vi.useRealTimers();
   });
 
-  it('defaults to 5 second interval when -i has no value', async () => {
+  it('defaults to 1 second interval when -i has no value', async () => {
     vi.useFakeTimers();
 
     await writeFile(
@@ -594,7 +747,7 @@ describe('ralph monitor (run)', () => {
     expect(parsed.done).toBe(1);
     expect(parsed.total).toBe(2);
     expect(parsed.currentTaskId).toBeNull();
-    expect(parsed.phases).toEqual([]);
+    expect(parsed.phaseTimestamps).toEqual([]);
     expect(parsed.lastLogLine).toBeNull();
   });
 
@@ -653,8 +806,9 @@ describe('ralph monitor (run)', () => {
 
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
     const parsed = JSON.parse(output);
-    expect(parsed.phases).toEqual(['Boot']);
-    expect(parsed.currentPhaseStarted).toBe('2026-03-10T12:00:00.000Z');
+    expect(parsed.phaseTimestamps).toHaveLength(1);
+    expect(parsed.phaseTimestamps[0].phase).toBe('Boot');
+    expect(parsed.phaseTimestamps[0].startedAt).toBe('2026-03-10T12:00:00.000Z');
   });
 
   it('JSON output includes null for missing tasks directory', async () => {
