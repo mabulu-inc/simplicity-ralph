@@ -1,4 +1,4 @@
-import * as fs from 'node:fs';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 
@@ -50,37 +50,47 @@ function buildTemplateConfig(answers: InitAnswers): InitConfig {
   return config;
 }
 
-function writeFile(
+async function writeFile(
   rootDir: string,
   relativePath: string,
   content: string,
   overwrite: boolean,
   result: InitResult,
-): void {
+): Promise<void> {
   const fullPath = path.join(rootDir, relativePath);
   const dir = path.dirname(fullPath);
 
-  fs.mkdirSync(dir, { recursive: true });
+  await fs.mkdir(dir, { recursive: true });
 
-  if (fs.existsSync(fullPath) && !overwrite) {
-    result.skipped.push(relativePath);
-    return;
+  if (!overwrite) {
+    try {
+      await fs.access(fullPath);
+      result.skipped.push(relativePath);
+      return;
+    } catch {
+      // File doesn't exist, proceed to write
+    }
   }
 
-  fs.writeFileSync(fullPath, content);
+  await fs.writeFile(fullPath, content);
   result.created.push(relativePath);
 }
 
-function updatePackageJson(rootDir: string, answers: InitAnswers): void {
+async function updatePackageJson(rootDir: string, answers: InitAnswers): Promise<void> {
   if (!isNodeLanguage(answers.language)) return;
 
   const pkgPath = path.join(rootDir, 'package.json');
-  if (!fs.existsSync(pkgPath)) return;
+  try {
+    await fs.access(pkgPath);
+  } catch {
+    return;
+  }
 
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+  const raw = await fs.readFile(pkgPath, 'utf-8');
+  const pkg = JSON.parse(raw);
   pkg.scripts = pkg.scripts || {};
   pkg.scripts.ralph = 'npx @simplicity/ralph loop';
-  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+  await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
 export async function runInit(rootDir: string, answers: InitAnswers): Promise<InitResult> {
@@ -88,12 +98,12 @@ export async function runInit(rootDir: string, answers: InitAnswers): Promise<In
   const overwrite = answers.overwrite ?? false;
   const result: InitResult = { created: [], skipped: [] };
 
-  writeFile(rootDir, 'docs/PRD.md', generatePrd(config.projectName), overwrite, result);
-  writeFile(rootDir, 'docs/RALPH-METHODOLOGY.md', generateMethodology(), overwrite, result);
-  writeFile(rootDir, 'docs/tasks/T-000.md', generateTask000(config), overwrite, result);
-  writeFile(rootDir, '.claude/CLAUDE.md', generateClaudeMd(config), overwrite, result);
+  await writeFile(rootDir, 'docs/PRD.md', generatePrd(config.projectName), overwrite, result);
+  await writeFile(rootDir, 'docs/RALPH-METHODOLOGY.md', generateMethodology(), overwrite, result);
+  await writeFile(rootDir, 'docs/tasks/T-000.md', generateTask000(config), overwrite, result);
+  await writeFile(rootDir, '.claude/CLAUDE.md', generateClaudeMd(config), overwrite, result);
 
-  updatePackageJson(rootDir, answers);
+  await updatePackageJson(rootDir, answers);
 
   return result;
 }
