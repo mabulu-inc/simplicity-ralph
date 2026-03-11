@@ -11,6 +11,7 @@ import { generateMethodology } from '../templates/methodology.js';
 import { generatePrd } from '../templates/prd.js';
 import { generateTask000 } from '../templates/task-000.js';
 import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
+import { generateRalphConfigJson } from '../templates/ralph-config-json.js';
 
 export interface InitAnswers {
   projectName: string;
@@ -22,6 +23,7 @@ export interface InitAnswers {
   database: string;
   fileNaming?: string;
   agent?: string;
+  model?: string;
   overwrite?: boolean;
 }
 
@@ -133,6 +135,14 @@ export async function runInit(rootDir: string, answers: InitAnswers): Promise<In
   }
   await writeFile(rootDir, 'docs/prompts/boot.md', defaultBootPromptTemplate(), overwrite, result);
 
+  await writeFile(
+    rootDir,
+    'ralph.config.json',
+    generateRalphConfigJson(config, agent, answers.model),
+    overwrite,
+    result,
+  );
+
   await updatePackageJson(rootDir, answers);
 
   return result;
@@ -161,6 +171,8 @@ async function promptForAnswers(): Promise<InitAnswers> {
     const qualityCheck = await prompt(rl, 'Check command', `${packageManager} check`);
     const testCommand = await prompt(rl, 'Test command', `${packageManager} test`);
     const database = await prompt(rl, 'Database', 'none');
+    const agent = await prompt(rl, 'AI agent (claude, gemini, codex, continue, cursor)', 'claude');
+    const model = await prompt(rl, 'Model (optional)', '');
 
     return {
       projectName,
@@ -170,6 +182,8 @@ async function promptForAnswers(): Promise<InitAnswers> {
       qualityCheck,
       testCommand,
       database,
+      agent: agent || 'claude',
+      model: model || undefined,
     };
   } finally {
     rl.close();

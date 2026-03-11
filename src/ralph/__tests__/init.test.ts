@@ -404,6 +404,104 @@ describe('runInit with cursor agent', () => {
   });
 });
 
+describe('runInit creates ralph.config.json', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  it('creates ralph.config.json with all required fields', async () => {
+    await runInit(tmpDir, defaultAnswers);
+    const filePath = path.join(tmpDir, 'ralph.config.json');
+    expect(fs.existsSync(filePath)).toBe(true);
+    const config = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    expect(config.language).toBe('TypeScript');
+    expect(config.packageManager).toBe('pnpm');
+    expect(config.testingFramework).toBe('Vitest');
+    expect(config.qualityCheck).toBe('pnpm check');
+    expect(config.testCommand).toBe('pnpm test');
+    expect(config.agent).toBe('claude');
+  });
+
+  it('includes ralph.config.json in created files list', async () => {
+    const result = await runInit(tmpDir, defaultAnswers);
+    expect(result.created).toContain('ralph.config.json');
+  });
+
+  it('includes agent field from answers', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, agent: 'gemini' };
+    await runInit(tmpDir, answers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.agent).toBe('gemini');
+  });
+
+  it('defaults agent to claude when not specified', async () => {
+    await runInit(tmpDir, defaultAnswers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.agent).toBe('claude');
+  });
+
+  it('includes optional fileNaming when provided', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, fileNaming: 'kebab-case' };
+    await runInit(tmpDir, answers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.fileNaming).toBe('kebab-case');
+  });
+
+  it('omits fileNaming when not provided', async () => {
+    await runInit(tmpDir, defaultAnswers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.fileNaming).toBeUndefined();
+  });
+
+  it('includes database when not "none"', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, database: 'PostgreSQL' };
+    await runInit(tmpDir, answers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.database).toBe('PostgreSQL');
+  });
+
+  it('omits database when "none"', async () => {
+    await runInit(tmpDir, defaultAnswers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.database).toBeUndefined();
+  });
+
+  it('includes model when provided', async () => {
+    const answers: InitAnswers = { ...defaultAnswers, model: 'claude-sonnet-4-5-20250514' };
+    await runInit(tmpDir, answers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.model).toBe('claude-sonnet-4-5-20250514');
+  });
+
+  it('omits model when not provided', async () => {
+    await runInit(tmpDir, defaultAnswers);
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.model).toBeUndefined();
+  });
+
+  it('respects overwrite flag for ralph.config.json', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'ralph.config.json'), '{"existing": true}');
+    const result = await runInit(tmpDir, defaultAnswers);
+    expect(result.skipped).toContain('ralph.config.json');
+    const content = fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8');
+    expect(content).toBe('{"existing": true}');
+  });
+
+  it('overwrites ralph.config.json when overwrite is true', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'ralph.config.json'), '{"existing": true}');
+    const result = await runInit(tmpDir, { ...defaultAnswers, overwrite: true });
+    expect(result.created).toContain('ralph.config.json');
+    const config = JSON.parse(fs.readFileSync(path.join(tmpDir, 'ralph.config.json'), 'utf-8'));
+    expect(config.language).toBe('TypeScript');
+  });
+});
+
 describe('run (CLI entry point)', () => {
   it('exports a run function', async () => {
     const mod = await import('../commands/init.js');

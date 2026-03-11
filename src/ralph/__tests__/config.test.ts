@@ -79,6 +79,8 @@ describe('parseConfig', () => {
       qualityCheck: 'pnpm check',
       testCommand: 'pnpm test',
       database: 'PostgreSQL via Docker on port 5433',
+      agent: undefined,
+      model: undefined,
     });
   });
 
@@ -92,6 +94,8 @@ describe('parseConfig', () => {
       qualityCheck: 'make check',
       testCommand: 'pytest',
       database: undefined,
+      agent: undefined,
+      model: undefined,
     });
   });
 
@@ -226,7 +230,66 @@ describe('parseConfig', () => {
 });
 
 describe('readConfig', () => {
-  it('reads and parses a CLAUDE.md file from disk', async () => {
+  it('reads from ralph.config.json when it exists', async () => {
+    const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+
+    const dir = await mkdtemp(join(tmpdir(), 'ralph-config-'));
+    const configData = {
+      language: 'Go',
+      packageManager: 'go',
+      testingFramework: 'go test',
+      qualityCheck: 'go vet && go test',
+      testCommand: 'go test',
+      agent: 'gemini',
+    };
+    await writeFile(join(dir, 'ralph.config.json'), JSON.stringify(configData));
+
+    try {
+      const config = await readConfig(dir);
+      expect(config.language).toBe('Go');
+      expect(config.packageManager).toBe('go');
+      expect(config.testingFramework).toBe('go test');
+      expect(config.qualityCheck).toBe('go vet && go test');
+      expect(config.testCommand).toBe('go test');
+      expect(config.agent).toBe('gemini');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('includes optional fields from ralph.config.json', async () => {
+    const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+
+    const dir = await mkdtemp(join(tmpdir(), 'ralph-config-'));
+    const configData = {
+      language: 'TypeScript',
+      packageManager: 'pnpm',
+      testingFramework: 'Vitest',
+      qualityCheck: 'pnpm check',
+      testCommand: 'pnpm test',
+      agent: 'claude',
+      model: 'claude-sonnet-4-5-20250514',
+      fileNaming: 'kebab-case',
+      database: 'PostgreSQL',
+    };
+    await writeFile(join(dir, 'ralph.config.json'), JSON.stringify(configData));
+
+    try {
+      const config = await readConfig(dir);
+      expect(config.fileNaming).toBe('kebab-case');
+      expect(config.database).toBe('PostgreSQL');
+      expect(config.agent).toBe('claude');
+      expect(config.model).toBe('claude-sonnet-4-5-20250514');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to .claude/CLAUDE.md when ralph.config.json does not exist', async () => {
     const { mkdtemp, writeFile, rm, mkdir } = await import('node:fs/promises');
     const { join } = await import('node:path');
     const { tmpdir } = await import('node:os');
@@ -245,14 +308,30 @@ describe('readConfig', () => {
     }
   });
 
-  it('throws when CLAUDE.md does not exist', async () => {
+  it('throws when neither ralph.config.json nor CLAUDE.md exist', async () => {
     const { mkdtemp, rm } = await import('node:fs/promises');
     const { join } = await import('node:path');
     const { tmpdir } = await import('node:os');
 
     const dir = await mkdtemp(join(tmpdir(), 'ralph-config-'));
     try {
-      await expect(readConfig(dir)).rejects.toThrow('CLAUDE.md');
+      await expect(readConfig(dir)).rejects.toThrow(/ralph\.config\.json.*CLAUDE\.md|config/i);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('validates required fields in ralph.config.json', async () => {
+    const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+
+    const dir = await mkdtemp(join(tmpdir(), 'ralph-config-'));
+    const configData = { language: 'Go' };
+    await writeFile(join(dir, 'ralph.config.json'), JSON.stringify(configData));
+
+    try {
+      await expect(readConfig(dir)).rejects.toThrow(/packageManager|required/i);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

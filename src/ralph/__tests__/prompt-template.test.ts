@@ -31,6 +31,8 @@ const mockConfig: ProjectConfig = {
   qualityCheck: 'pnpm check',
   testCommand: 'pnpm test',
   database: undefined,
+  agent: undefined,
+  model: undefined,
 };
 
 describe('interpolateTemplate', () => {

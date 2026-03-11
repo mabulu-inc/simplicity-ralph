@@ -11,6 +11,8 @@ export interface ProjectConfig {
   qualityCheck: string;
   testCommand: string;
   database: string | undefined;
+  agent: string | undefined;
+  model: string | undefined;
 }
 
 function parseConfigSection(content: string): Root {
@@ -47,16 +49,71 @@ export function parseConfig(content: string): ProjectConfig {
     qualityCheck: requireField(sectionTree, 'Quality check', 'Quality check'),
     testCommand: requireField(sectionTree, 'Test command', 'Test command'),
     database: extractConfigField(sectionTree, 'Database'),
+    agent: undefined,
+    model: undefined,
+  };
+}
+
+interface RalphConfigJsonData {
+  language: string;
+  packageManager: string;
+  testingFramework: string;
+  qualityCheck: string;
+  testCommand: string;
+  agent?: string;
+  model?: string;
+  fileNaming?: string;
+  database?: string;
+}
+
+const REQUIRED_JSON_FIELDS: (keyof RalphConfigJsonData)[] = [
+  'language',
+  'packageManager',
+  'testingFramework',
+  'qualityCheck',
+  'testCommand',
+];
+
+function parseConfigJson(raw: string): ProjectConfig {
+  const data = JSON.parse(raw) as Record<string, unknown>;
+
+  for (const field of REQUIRED_JSON_FIELDS) {
+    if (!data[field] || typeof data[field] !== 'string') {
+      throw new Error(`"${field}" is required in ralph.config.json`);
+    }
+  }
+
+  const typed = data as unknown as RalphConfigJsonData;
+  return {
+    language: typed.language,
+    fileNaming: typed.fileNaming ?? undefined,
+    packageManager: typed.packageManager,
+    testingFramework: typed.testingFramework,
+    qualityCheck: typed.qualityCheck,
+    testCommand: typed.testCommand,
+    database: typed.database ?? undefined,
+    agent: typed.agent ?? undefined,
+    model: typed.model ?? undefined,
   };
 }
 
 export async function readConfig(projectDir: string): Promise<ProjectConfig> {
-  const configPath = join(projectDir, '.claude', 'CLAUDE.md');
+  const jsonPath = join(projectDir, 'ralph.config.json');
+  try {
+    const raw = await readFile(jsonPath, 'utf-8');
+    return parseConfigJson(raw);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw err;
+    }
+  }
+
+  const mdPath = join(projectDir, '.claude', 'CLAUDE.md');
   let content: string;
   try {
-    content = await readFile(configPath, 'utf-8');
+    content = await readFile(mdPath, 'utf-8');
   } catch {
-    throw new Error(`Cannot read CLAUDE.md at ${configPath}`);
+    throw new Error(`Cannot find ralph.config.json or .claude/CLAUDE.md in ${projectDir}`);
   }
   return parseConfig(content);
 }
