@@ -21,7 +21,7 @@ MAX_ITERATIONS=10
 DELAY=2
 DRY_RUN=false
 VERBOSE=false
-ITER_TIMEOUT=900  # 15 minutes per iteration
+ITER_TIMEOUT=""   # empty = auto-scale per task complexity
 LOG_DIR=".ralph-logs"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TASKS_DIR="$PROJECT_DIR/docs/tasks"
@@ -111,6 +111,40 @@ get_next_task() {
     fi
   done
   echo "none"
+}
+
+# Determine complexity tier for a task file → light, standard, or heavy
+# Tiers: light (50 turns, 600s), standard (75 turns, 900s), heavy (125 turns, 1200s)
+compute_task_complexity() {
+  local task_file="$TASKS_DIR/${1}.md"
+  [[ -f "$task_file" ]] || { echo "standard"; return; }
+
+  # Count dependencies
+  local deps_line
+  deps_line=$(grep '^\- \*\*Depends\*\*:' "$task_file" 2>/dev/null | sed 's/.*: //' || true)
+  local dep_count=0
+  if [[ -n "$deps_line" && "$deps_line" != "none" && "$deps_line" != "(none)" ]]; then
+    dep_count=$(echo "$deps_line" | tr ',' '\n' | sed '/^$/d' | wc -l | xargs)
+  fi
+
+  # Count produces (lines starting with - under ## Produces)
+  local produce_count=0
+  produce_count=$(sed -n '/^## Produces/,/^##/p' "$task_file" 2>/dev/null | grep -c '^\- ' || echo 0)
+
+  # Check for integration keywords in title/description
+  local has_keyword=false
+  if head -20 "$task_file" 2>/dev/null | grep -qiE '(integration|end-to-end|e2e|refactor)'; then
+    has_keyword=true
+  fi
+
+  # Determine tier
+  if $has_keyword || [[ "$dep_count" -ge 4 ]] || [[ "$produce_count" -ge 5 ]]; then
+    echo "heavy"
+  elif [[ "$dep_count" -ge 2 ]] || [[ "$produce_count" -ge 3 ]]; then
+    echo "standard"
+  else
+    echo "light"
+  fi
 }
 
 count_tasks_by_status() {
@@ -343,7 +377,7 @@ echo -e "${BOLD}=== Ralph Loop ===${RESET}"
 echo -e "  Project:    $PROJECT_DIR"
 echo -e "  Iterations: $([ "$MAX_ITERATIONS" -eq 0 ] && echo 'unlimited' || echo "$MAX_ITERATIONS")"
 echo -e "  Delay:      ${DELAY}s between iterations"
-echo -e "  Timeout:    ${ITER_TIMEOUT}s per iteration"
+echo -e "  Timeout:    $([ -n "$ITER_TIMEOUT" ] && echo "${ITER_TIMEOUT}s (override)" || echo "auto (light=600s, standard=900s, heavy=1200s)")"
 echo -e "  Verbose:    $VERBOSE"
 echo -e "  Logs:       $LOG_DIR/"
 echo -e "  Next task:  $next_task"
@@ -400,11 +434,20 @@ while true; do
     break
   fi
 
+  # Scale turns and timeout based on task complexity (CLI flags override)
+  task_tier=$(compute_task_complexity "$next_task")
+  case "$task_tier" in
+    light)    iter_max_turns=50;  iter_timeout=600  ;;
+    heavy)    iter_max_turns=125; iter_timeout=1200 ;;
+    *)        iter_max_turns=75;  iter_timeout=900  ;;
+  esac
+  [[ -n "$ITER_TIMEOUT" ]] && iter_timeout="$ITER_TIMEOUT"
+
   log_file="$PROJECT_DIR/$LOG_DIR/${next_task}-$(date '+%Y%m%d-%H%M%S').jsonl"
   iter_start=$(date +%s)
 
   echo ""
-  echo -e "${BOLD}[$(timestamp)] === Iteration $iteration/$([ "$MAX_ITERATIONS" -eq 0 ] && echo '∞' || echo "$MAX_ITERATIONS") — Target: $next_task ===${RESET}"
+  echo -e "${BOLD}[$(timestamp)] === Iteration $iteration/$([ "$MAX_ITERATIONS" -eq 0 ] && echo '∞' || echo "$MAX_ITERATIONS") — Target: $next_task (${task_tier}: ${iter_max_turns} turns, ${iter_timeout}s) ===${RESET}"
 
   PROMPT="You are in Ralph Loop iteration $iteration. Follow the Ralph Methodology as defined in CLAUDE.md and docs/RALPH-METHODOLOGY.md.
 
@@ -432,8 +475,9 @@ WORKFLOW:
    - Search code: ALWAYS use Grep or Glob tools. NEVER use grep, find, or ls in Bash.
    - The ONLY acceptable Bash uses are: git, pnpm, docker, and commands with no dedicated tool.
    - This is enforced automatically. Exceeding 10 shell-read violations kills the iteration.
-6. Do NOT push to origin — the loop handles that. If blocked, note the blocker in the task file and exit.
-7. Complete ONE task, then STOP. Do not start a second task in the same iteration."
+6. BASH TIMEOUTS: When running pnpm, vitest, or any build/test command via Bash, set timeout to at least 120000ms (120 seconds). TypeScript compilation and test suites need time. Never use 30000ms or less for test/build commands.
+7. Do NOT push to origin — the loop handles that. If blocked, note the blocker in the task file and exit.
+8. Complete ONE task, then STOP. Do not start a second task in the same iteration."
 
   timed_out=false
 
@@ -441,7 +485,7 @@ WORKFLOW:
     claude --print \
          --verbose \
          --output-format stream-json \
-         --max-turns 50 \
+         --max-turns "$iter_max_turns" \
          --dangerously-skip-permissions \
          "$PROMPT" 2>&1 | tee "$log_file" &
     claude_pid=$!
@@ -449,7 +493,7 @@ WORKFLOW:
     claude --print \
          --verbose \
          --output-format stream-json \
-         --max-turns 50 \
+         --max-turns "$iter_max_turns" \
          --dangerously-skip-permissions \
          "$PROMPT" \
          > "$log_file" 2>&1 &
@@ -462,11 +506,11 @@ WORKFLOW:
     monitor_pid=$!
   fi
 
-  # Timeout watchdog: kill claude if it exceeds ITER_TIMEOUT
+  # Timeout watchdog: kill claude if it exceeds iter_timeout
   (
-    sleep "$ITER_TIMEOUT"
+    sleep "$iter_timeout"
     if kill -0 "$claude_pid" 2>/dev/null; then
-      echo -e "\n  ${RED}[$(date '+%Y-%m-%dT%H:%M:%S')] TIMEOUT — killing iteration after ${ITER_TIMEOUT}s${RESET}"
+      echo -e "\n  ${RED}[$(date '+%Y-%m-%dT%H:%M:%S')] TIMEOUT — killing iteration after ${iter_timeout}s${RESET}"
       kill_tree "$claude_pid" TERM
       sleep 5
       kill_tree "$claude_pid" KILL 2>/dev/null || true
@@ -544,7 +588,7 @@ WORKFLOW:
         echo -e "${GREEN}[$(timestamp)] Iteration $iteration completed (terminated after commit).${RESET}"
       else
         timed_out=true
-        echo -e "${RED}[$(timestamp)] Iteration $iteration TIMED OUT after $(fmt_duration "$ITER_TIMEOUT").${RESET}"
+        echo -e "${RED}[$(timestamp)] Iteration $iteration TIMED OUT after $(fmt_duration "$iter_timeout").${RESET}"
       fi
     else
       echo -e "${RED}[$(timestamp)] Iteration $iteration exited with code $exit_code.${RESET}"

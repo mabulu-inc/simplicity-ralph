@@ -115,11 +115,34 @@ The main AI development loop. Runs Claude Code in stateless iterations, each pic
 
 - `-n, --iterations <N>` — max iterations (default: 10, 0 = unlimited)
 - `-d, --delay <seconds>` — delay between iterations (default: 2)
-- `-t, --timeout <seconds>` — max seconds per iteration (default: 900)
+- `-t, --timeout <seconds>` — max seconds per iteration (default: auto, see Task Complexity Scaling)
+- `-m, --max-turns <N>` — max Claude turns per iteration (default: auto, see Task Complexity Scaling)
 - `-v, --verbose` — stream Claude output to terminal
 - `--dry-run` — print config and exit
 - `--no-push` — don't auto-push after iterations
 - `--no-db` — skip database startup
+
+**Task Complexity Scaling:**
+
+Before launching each iteration, ralph inspects the target task file and scales `--max-turns` and `--timeout` based on task characteristics. This prevents simple tasks from running away while giving complex tasks enough runway to complete.
+
+Complexity signals (from the task file):
+
+| Signal              | How to detect                                                                   |
+| ------------------- | ------------------------------------------------------------------------------- |
+| Dependency count    | Number of entries in the `Depends` field                                        |
+| Output file count   | Number of items in the `Produces` section                                       |
+| Integration keyword | Title or description contains "integration", "end-to-end", "e2e", or "refactor" |
+
+Scaling tiers:
+
+| Tier     | Criteria                                       | Max turns | Timeout |
+| -------- | ---------------------------------------------- | --------- | ------- |
+| Light    | 0–1 deps, 1–2 produces, no integration keyword | 50        | 600s    |
+| Standard | 2–3 deps OR 3–4 produces                       | 75        | 900s    |
+| Heavy    | 4+ deps OR 5+ produces OR integration keyword  | 125       | 1200s   |
+
+CLI flags `-m` and `-t` override the auto-scaling when provided explicitly.
 
 **Exit conditions:**
 
@@ -218,7 +241,8 @@ Each iteration sends a structured prompt to Claude that instructs it to:
 4. Run the quality check command after each layer
 5. Commit with message format `T-NNN: description`
 6. Update the task file in the same commit
-7. Complete ONE task, then stop
+7. Use adequate Bash timeouts — at least 120 seconds for test/build commands (TypeScript compilation and test suites need time; short timeouts waste entire iterations)
+8. Complete ONE task, then stop
 
 The boot prompt is critical to ralph's operation — it encodes the methodology rules that each stateless Claude session follows.
 
