@@ -227,6 +227,104 @@ Test task.
     expect(task.title).toBe('');
     expect(task.description).toBe('');
   });
+
+  it('parses fields with single asterisks (non-bold)', () => {
+    const content = `# T-050: Single asterisks
+
+- *Status*: DONE
+- *Milestone*: 3 — Features
+- *Depends*: none
+- *PRD Reference*: §5
+- *Completed*: 2026-03-10 10:00 (3m duration)
+- *Commit*: abc1234
+- *Cost*: $5.00
+
+## Description
+
+Uses single asterisks for emphasis.
+
+## Produces
+
+- \`src/single.ts\`
+`;
+    const task = parseTaskFile('T-050.md', content);
+    expect(task.status).toBe('DONE');
+    expect(task.milestone).toBe('3 — Features');
+    expect(task.depends).toEqual([]);
+    expect(task.prdReference).toBe('§5');
+    expect(task.completed).toBe('2026-03-10 10:00 (3m duration)');
+    expect(task.commit).toBe('abc1234');
+    expect(task.cost).toBe('$5.00');
+  });
+
+  it('parses fields with extra whitespace', () => {
+    const content = `# T-051: Extra spaces
+
+-  **Status**:   TODO
+-  **Milestone**:   4 — Cleanup
+-  **Depends**:   T-001 , T-002
+-  **PRD Reference**:   §6
+
+## Description
+
+Extra whitespace around colons and values.
+
+## Produces
+
+- \`src/spaces.ts\`
+`;
+    const task = parseTaskFile('T-051.md', content);
+    expect(task.status).toBe('TODO');
+    expect(task.milestone).toBe('4 — Cleanup');
+    expect(task.depends).toEqual(['T-001', 'T-002']);
+    expect(task.prdReference).toBe('§6');
+  });
+
+  it('parses fields with trailing spaces', () => {
+    const content = `# T-052: Trailing spaces
+
+- **Status**: DONE
+- **Milestone**: 2 — Core
+- **Depends**: none
+- **PRD Reference**: §2
+
+## Description
+
+Fields have trailing spaces.
+
+## Produces
+
+- \`src/trailing.ts\`
+`;
+    const task = parseTaskFile('T-052.md', content);
+    expect(task.status).toBe('DONE');
+    expect(task.milestone).toBe('2 — Core');
+    expect(task.depends).toEqual([]);
+    expect(task.prdReference).toBe('§2');
+  });
+
+  it('parses fields with mixed bold styles (underscore bold)', () => {
+    const content = `# T-053: Underscore bold
+
+- __Status__: TODO
+- __Milestone__: 1 — Setup
+- __Depends__: none
+- __PRD Reference__: §1
+
+## Description
+
+Uses underscore bold syntax.
+
+## Produces
+
+- \`src/underscore.ts\`
+`;
+    const task = parseTaskFile('T-053.md', content);
+    expect(task.status).toBe('TODO');
+    expect(task.milestone).toBe('1 — Setup');
+    expect(task.depends).toEqual([]);
+    expect(task.prdReference).toBe('§1');
+  });
 });
 
 describe('scanTasks', () => {

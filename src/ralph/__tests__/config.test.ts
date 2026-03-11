@@ -166,6 +166,63 @@ describe('parseConfig', () => {
 `;
     expect(() => parseConfig(content)).toThrow('Testing framework');
   });
+
+  it('parses config with single asterisks (non-bold)', () => {
+    const content = `# Project
+
+## Project-Specific Config
+
+- *Language*: Python
+- *Package manager*: pip
+- *Testing framework*: pytest
+- *Quality check*: \`make check\`
+- *Test command*: \`pytest\`
+`;
+    const config = parseConfig(content);
+    expect(config.language).toBe('Python');
+    expect(config.packageManager).toBe('pip');
+    expect(config.testingFramework).toBe('pytest');
+    expect(config.qualityCheck).toBe('make check');
+    expect(config.testCommand).toBe('pytest');
+  });
+
+  it('parses config with extra whitespace', () => {
+    const content = `# Project
+
+## Project-Specific Config
+
+-  **Language**:   TypeScript
+-  **Package manager**:   pnpm
+-  **Testing framework**:   Vitest
+-  **Quality check**:   \`pnpm check\`
+-  **Test command**:   \`pnpm test\`
+`;
+    const config = parseConfig(content);
+    expect(config.language).toBe('TypeScript');
+    expect(config.packageManager).toBe('pnpm');
+    expect(config.testingFramework).toBe('Vitest');
+    expect(config.qualityCheck).toBe('pnpm check');
+    expect(config.testCommand).toBe('pnpm test');
+  });
+
+  it('parses config with underscore bold syntax', () => {
+    const content = `# Project
+
+## Project-Specific Config
+
+- __Language__: Go
+- __Package manager__: go
+- __Testing framework__: go test
+- __Quality check__: \`go vet && go test\`
+- __Test command__: \`go test\`
+`;
+    const config = parseConfig(content);
+    expect(config.language).toBe('Go');
+    expect(config.packageManager).toBe('go');
+    expect(config.testingFramework).toBe('go test');
+    expect(config.qualityCheck).toBe('go vet && go test');
+    expect(config.testCommand).toBe('go test');
+  });
 });
 
 describe('readConfig', () => {

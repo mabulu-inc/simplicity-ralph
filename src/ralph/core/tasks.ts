@@ -1,5 +1,13 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import {
+  parseMarkdown,
+  extractFieldFromAst,
+  extractHeading,
+  hasSection,
+  countListItemsInSection,
+  extractSectionFirstParagraph,
+} from './markdown.js';
 
 export interface Task {
   id: string;
@@ -17,49 +25,30 @@ export interface Task {
   producesCount: number;
 }
 
-function extractField(content: string, field: string): string | undefined {
-  const re = new RegExp(`^- \\*\\*${field}\\*\\*:\\s*(.+)$`, 'm');
-  const match = content.match(re);
-  return match ? match[1].trim() : undefined;
-}
-
 function parseDeps(raw: string | undefined): string[] {
   if (!raw || raw.toLowerCase() === 'none') return [];
   return raw.split(',').map((d) => d.trim());
 }
 
-function countProduces(content: string): number {
-  const idx = content.indexOf('\n## Produces');
-  if (idx === -1) return 0;
-  const after = content.slice(idx + '\n## Produces'.length);
-  const nextSection = after.indexOf('\n## ');
-  const section = nextSection === -1 ? after : after.slice(0, nextSection);
-  const lines = section.split('\n');
-  return lines.filter((line) => /^\s*-\s+/.test(line)).length;
-}
-
-function extractDescription(content: string): string {
-  const descMatch = content.match(/^## Description\s*\n([\s\S]*?)(?=\n##|\n*$)/m);
-  if (!descMatch) return '';
-  return descMatch[1].trim().split('\n\n')[0].trim();
-}
-
 export function parseTaskFile(filename: string, content: string): Task {
-  const headingMatch = content.match(/^# (T-\d+):\s*(.+)$/m);
+  const tree = parseMarkdown(content);
+
+  const heading = extractHeading(tree, 1) ?? '';
+  const headingMatch = heading.match(/^(T-\d+):\s*(.+)$/);
   const id = headingMatch ? headingMatch[1] : filename.replace('.md', '');
   const title = headingMatch ? headingMatch[2].trim() : '';
   const number = parseInt(id.replace('T-', ''), 10);
 
-  const status = (extractField(content, 'Status') as 'TODO' | 'DONE') ?? 'TODO';
-  const milestone = extractField(content, 'Milestone') ?? '';
-  const depends = parseDeps(extractField(content, 'Depends'));
-  const prdReference = extractField(content, 'PRD Reference') ?? '';
-  const completed = extractField(content, 'Completed');
-  const commit = extractField(content, 'Commit');
-  const cost = extractField(content, 'Cost');
-  const blocked = /^## Blocked/m.test(content);
-  const description = extractDescription(content);
-  const producesCount = countProduces(content);
+  const status = (extractFieldFromAst(tree, 'Status') as 'TODO' | 'DONE') ?? 'TODO';
+  const milestone = extractFieldFromAst(tree, 'Milestone') ?? '';
+  const depends = parseDeps(extractFieldFromAst(tree, 'Depends'));
+  const prdReference = extractFieldFromAst(tree, 'PRD Reference') ?? '';
+  const completed = extractFieldFromAst(tree, 'Completed');
+  const commit = extractFieldFromAst(tree, 'Commit');
+  const cost = extractFieldFromAst(tree, 'Cost');
+  const blocked = hasSection(tree, 'Blocked');
+  const description = extractSectionFirstParagraph(tree, 'Description');
+  const producesCount = countListItemsInSection(tree, 'Produces');
 
   return {
     id,
