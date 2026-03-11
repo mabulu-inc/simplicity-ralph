@@ -1,6 +1,6 @@
 # @simplicity/ralph — Product Requirements Document
 
-A CLI tool that implements the Ralph Methodology: stateless, PRD-driven AI development automated by Claude Code.
+A CLI tool that implements the Ralph Methodology: stateless, PRD-driven AI development automated by AI coding agents.
 
 Any project can `npx @simplicity/ralph init` to bootstrap, then `ralph loop` to build.
 
@@ -15,6 +15,8 @@ Ralph's unit of work is a **task file** (`docs/tasks/T-NNN.md`). Each file has:
 - **Milestone**: N — Name
 - **Depends**: T-XXX, T-YYY (or "none")
 - **PRD Reference**: §N.N
+- **Touches**: `path/to/file.ts`, `path/to/other.ts` (optional — files the task will read or modify)
+- **Model**: (optional — overrides project default, e.g., `claude-opus-4-20250514`)
 - **Completed**: YYYY-MM-DD HH:MM (Nm duration)
 - **Commit**: <SHA>
 - **Cost**: $N.NN
@@ -22,6 +24,10 @@ Ralph's unit of work is a **task file** (`docs/tasks/T-NNN.md`). Each file has:
 ## Description
 
 What to implement and why.
+
+## Hints
+
+(Optional) Implementation guidance for the agent — e.g., which existing patterns to follow, which helpers to reuse, known pitfalls to avoid. Included verbatim in the boot prompt to reduce exploration time.
 
 ## Produces
 
@@ -50,17 +56,17 @@ When a task is completed, update in the same commit:
 
 ## 2. Project Configuration
 
-Ralph reads project configuration from `.claude/CLAUDE.md`. This is the same file Claude Code uses, so there's no separate config file.
+Ralph reads project configuration from a `ralph.config.json` file at the project root and from the active agent's instructions file.
 
 ### 2.1 Required Config Fields
-
-Ralph extracts these from CLAUDE.md (from the `## Project-Specific Config` section):
 
 - **Language** — e.g., TypeScript, Python, Go
 - **Package manager** — e.g., pnpm, npm, yarn, pip, cargo
 - **Testing framework** — e.g., Vitest, Jest, pytest
 - **Quality check** — the command that must pass before committing (e.g., `pnpm check`)
 - **Test command** — the command to run tests (e.g., `pnpm test`)
+- **Agent** — which AI coding agent to use (default: `claude`). See §10 for supported agents.
+- **Model** — which model to use (e.g., `claude-sonnet-4-5-20250514`). If omitted, the agent's default model is used.
 
 ### 2.2 Optional Config
 
@@ -82,45 +88,56 @@ Interactive project bootstrapper. Prompts for project configuration, then create
 5. Check command — required. If none exists, ralph helps set one up.
 6. Database (none, PostgreSQL via Docker, etc.)
 
+**Prompts (additional):**
+
+7. AI agent (claude, gemini, codex, continue, cursor — default: auto-detected from installed CLIs, fallback to claude)
+8. Model (e.g., `claude-sonnet-4-5-20250514`, `gemini-2.5-pro` — default: agent's default model)
+
 **Creates:**
 
 - `docs/PRD.md` — skeleton PRD with numbered sections to fill in
 - `docs/RALPH-METHODOLOGY.md` — full methodology reference
 - `docs/tasks/T-000.md` — infrastructure bootstrap task
-- `.claude/CLAUDE.md` — project config filled in with answers above
+- `docs/prompts/boot.md` — the default boot prompt template (see §5)
+- `ralph.config.json` — project configuration including agent selection
+- Agent instructions file (e.g., `.claude/CLAUDE.md`, `GEMINI.md`, `AGENTS.md`) — populated with project-specific config for the selected agent
 
 **Behavior:**
 
 - If files already exist, warn and ask before overwriting
 - If applicable (Node.js projects), add ralph scripts to `package.json`
 - If no check command exists, scaffold one (e.g., add a `check` script to `package.json`)
+- Auto-detect installed agent CLIs and default the agent prompt to the first one found (preference order: claude, gemini, codex, continue, cursor). Fall back to claude if none are detected.
+- If the selected agent CLI is not installed, warn the user and continue (they may install it later before running `ralph loop`)
 
 ### 3.2 `ralph loop`
 
-The main AI development loop. Runs Claude Code in stateless iterations, each picking up the next eligible task.
+The main AI development loop. Runs the configured AI coding agent in stateless iterations, each picking up the next eligible task.
 
 **Iteration cycle:**
 
-1. **Pre-flight** — verify `claude` CLI is available, `docs/tasks/` exists
+1. **Pre-flight** — verify the configured agent CLI is installed and on PATH, `docs/tasks/` exists, `docs/prompts/boot.md` exists
 2. **Database** — if project has Docker Compose, start containers before each iteration
 3. **Clean slate** — discard unstaged changes from crashed iterations
 4. **Find next task** — scan task files, select lowest-numbered eligible TODO
-5. **Launch Claude** — spawn `claude --print` with the boot prompt
-6. **Monitor** — track progress via JSON stream output (tool use, phases, errors)
-7. **Timeout** — kill iterations exceeding the time limit
-8. **Commit detection** — after a commit lands, end the iteration (one task per iteration)
-9. **Post-iteration** — backfill SHAs, update costs, regenerate milestones, push
+5. **Build prompt** — load the boot prompt template from `docs/prompts/boot.md`, interpolate task and config variables
+6. **Launch agent** — spawn the configured agent CLI with the rendered prompt and resolved model (task-level model overrides project default; see §10)
+7. **Monitor** — track progress via the agent's output stream
+8. **Timeout** — kill iterations exceeding the time limit
+9. **Commit detection** — after a commit lands, end the iteration (one task per iteration)
+10. **Post-iteration** — backfill SHAs, update costs, regenerate milestones, push
 
 **Options:**
 
 - `-n, --iterations <N>` — max iterations (default: 10, 0 = unlimited)
 - `-d, --delay <seconds>` — delay between iterations (default: 2)
 - `-t, --timeout <seconds>` — max seconds per iteration (default: auto, see Task Complexity Scaling)
-- `-m, --max-turns <N>` — max Claude turns per iteration (default: auto, see Task Complexity Scaling)
-- `-v, --verbose` — stream Claude output to terminal
+- `-m, --max-turns <N>` — max agent turns per iteration (default: auto, see Task Complexity Scaling)
+- `-v, --verbose` — stream agent output to terminal
 - `--dry-run` — print config and exit
 - `--no-push` — don't auto-push after iterations
 - `--no-db` — skip database startup
+- `--agent <name>` — override the configured agent for this run
 
 **Task Complexity Scaling:**
 
@@ -144,6 +161,16 @@ Scaling tiers:
 
 CLI flags `-m` and `-t` override the auto-scaling when provided explicitly.
 
+**Retry context:**
+
+When a task fails (timeout, non-zero exit, no commit detected), the next attempt for the same task must include context from the failed iteration. Ralph parses the last log file for:
+
+- Last phase reached (Boot, Red, Green, Verify, Commit)
+- Last error or failure output
+- Files that were modified before failure
+
+This context is injected into the boot prompt so the agent can avoid repeating the same mistake. See §5.6.
+
 **Exit conditions:**
 
 - All tasks are DONE
@@ -166,6 +193,10 @@ Real-time status display showing progress and current activity.
 - Current task ID and title
 - Phase timeline for the active iteration (Boot → Red → Green → Verify → Commit)
 
+**Behavior:**
+
+- Watch mode renders as a live dashboard — clear the screen before each refresh so the display updates in place rather than streaming appended output
+
 **Options:**
 
 - `-w, --watch` — continuous mode, refresh every N seconds (default: 5)
@@ -173,7 +204,7 @@ Real-time status display showing progress and current activity.
 
 ### 3.4 `ralph kill`
 
-Force-stop ralph and all child processes (claude sessions, watchers, etc.).
+Force-stop ralph and all child processes (agent sessions, watchers, etc.).
 
 **Behavior:**
 
@@ -228,23 +259,109 @@ Calculate and display token usage and estimated cost from ralph log files.
 Ralph stores iteration logs in `.ralph-logs/` as JSONL files.
 
 - Naming: `T-NNN-YYYYMMDD-HHMMSS.jsonl`
-- Content: Claude's JSON stream output (tool calls, text, usage, errors)
+- Content: Agent's JSON stream output (tool calls, text, usage, errors)
 - Used by `ralph cost` and `ralph monitor` for analysis
 
 ## 5. The Boot Prompt
 
-Each iteration sends a structured prompt to Claude that instructs it to:
+The boot prompt is a Markdown template stored in the user's project at `docs/prompts/boot.md`. It is the methodology's instruction set — each stateless agent session follows its rules.
 
-1. Scan task files and find the next eligible task
-2. Read the referenced PRD sections
-3. Implement using red/green TDD
-4. Run the quality check command after each layer
-5. Commit with message format `T-NNN: description`
-6. Update the task file in the same commit
-7. Use adequate Bash timeouts — at least 120 seconds for test/build commands (TypeScript compilation and test suites need time; short timeouts waste entire iterations)
-8. Complete ONE task, then stop
+### 5.1 Template Variables
 
-The boot prompt is critical to ralph's operation — it encodes the methodology rules that each stateless Claude session follows.
+The template supports variable interpolation using `{{variable}}` syntax. Ralph replaces these before sending the prompt to the agent:
+
+| Variable                      | Value                                                              |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `{{task.id}}`                 | e.g., `T-005`                                                      |
+| `{{task.title}}`              | Task title                                                         |
+| `{{task.description}}`        | Task description                                                   |
+| `{{task.prdReference}}`       | e.g., `§3.2`                                                       |
+| `{{config.language}}`         | e.g., `TypeScript`                                                 |
+| `{{config.packageManager}}`   | e.g., `pnpm`                                                       |
+| `{{config.testingFramework}}` | e.g., `Vitest`                                                     |
+| `{{config.qualityCheck}}`     | e.g., `pnpm check`                                                 |
+| `{{config.testCommand}}`      | e.g., `pnpm test`                                                  |
+| `{{config.fileNaming}}`       | e.g., `kebab-case` (blank if unset)                                |
+| `{{config.database}}`         | e.g., `PostgreSQL` (blank if unset)                                |
+| `{{task.touches}}`            | Comma-separated file paths from the Touches field (blank if unset) |
+| `{{task.hints}}`              | Content of the task's Hints section (blank if no Hints section)    |
+| `{{task.prdContent}}`         | Extracted PRD section content matching the task's PRD Reference    |
+| `{{codebaseIndex}}`           | Auto-generated file/export index (see §5.5)                        |
+| `{{retryContext}}`            | Context from a previous failed attempt, if any (see §5.6)          |
+
+### 5.2 Default Template
+
+`ralph init` drops a default `docs/prompts/boot.md` that instructs the agent to:
+
+1. Read the task file and referenced PRD sections
+2. Implement using red/green TDD
+3. Run the quality check command after each layer
+4. Commit with message format `T-NNN: description`
+5. Update the task file in the same commit
+6. Use adequate timeouts for test/build commands
+7. Complete ONE task, then stop
+
+### 5.3 Customization
+
+Users may edit `docs/prompts/boot.md` freely before running `ralph loop`. This allows teams to adjust methodology rules, add project-specific instructions, or change the TDD workflow without modifying ralph's source code.
+
+### 5.4 Inline PRD Section Injection
+
+The boot prompt must include the actual content of the PRD section referenced by the task, not just a section number. At prompt build time, ralph parses the `PRD Reference` field (e.g., `§3.2`), extracts the corresponding section from `docs/PRD.md`, and injects it as a `{{task.prdContent}}` template variable. This eliminates the agent wasting turns reading the entire PRD to find the relevant section.
+
+### 5.5 Codebase Index
+
+Before each iteration, ralph generates a lightweight codebase index — a list of source files with their exported symbols — and injects it into the prompt as `{{codebaseIndex}}`. This lets the agent surgically read only the files it needs instead of exploring the entire codebase during the Boot phase.
+
+The index is generated by scanning source files (e.g., `src/**/*.ts`) and extracting export signatures. It should be compact (file path + exported names, one line per file) and regenerated at the start of each iteration.
+
+**Scaling note:** A full codebase index becomes expensive at ~500–1,000+ source files (~15k–30k+ tokens), where it starts competing for context space and undermining prompt cache hits. Future versions may need to filter the index (e.g., by proximity to the task's `Touches` paths or a token budget cap), but this is not a concern for now — ralph projects are typically greenfield and will stay well under that threshold.
+
+### 5.6 Retry Context
+
+When a task is being retried after a failed iteration, ralph injects context from the previous attempt into the boot prompt as `{{retryContext}}`. This variable is empty on the first attempt and populated on retries. See §3.2 for what is extracted from the failed log.
+
+The retry context should instruct the agent to:
+
+- Not repeat the same approach that failed
+- Focus on the failure point (e.g., if Verify failed, focus on fixing quality issues rather than rewriting from scratch)
+- Reference the specific files that were modified in the previous attempt
+
+### 5.7 Layered Prompt Architecture
+
+As the codebase and prompt grow, the boot prompt should be split into layers to maximize API cache hits and reduce token waste:
+
+| Layer        | Content                                                         | Stability                                 |
+| ------------ | --------------------------------------------------------------- | ----------------------------------------- |
+| **System**   | TDD methodology, tool usage rules, commit format, quality gates | Stable across all iterations (cacheable)  |
+| **Project**  | Config values, file naming, quality commands                    | Stable across iterations (cacheable)      |
+| **Codebase** | Auto-generated file/export index                                | Changes only when files are added/removed |
+| **Task**     | Task description, PRD section content, touches, hints           | Changes per task                          |
+| **Retry**    | Previous failure context                                        | Only present on retries                   |
+
+For agents that support `--system-prompt` (or equivalent), the System and Project layers should be passed as the system prompt, and the remaining layers as the user prompt. This maximizes prompt caching at the API level.
+
+### 5.8 Boot Phase Guidance
+
+The default boot prompt template must include explicit guidance to prevent the agent from wasting tokens during the Boot phase:
+
+- **Task re-discovery prevention**: The prompt must clearly state that the loop has already selected the task — the agent should not scan task files to find the next eligible task.
+- **File scoping**: When the task has a `Touches` field, the prompt lists those files as the starting point — read these first, skip unrelated files.
+- **Read budget**: The prompt should encourage the agent to begin writing tests within a bounded number of tool calls (e.g., 10), preventing the defensive "read everything" pattern.
+- **Targeted verification**: During TDD cycles, the agent should run only the relevant tests (specific test file or `--grep` pattern) and lint/typecheck only changed files — not the full quality check command. The full quality check runs **once** at the end, before committing. This prevents idle time scaling linearly with project size while maintaining the same quality gates.
+- **Commit phase batching**: The prompt must instruct the agent to minimize tool calls during the wrap-up phase. Specifically:
+  - Update all task metadata fields (Status → DONE, Completed timestamp, Completion Notes) in a **single edit call**, not separate edits per field.
+  - Stage and commit immediately after — do not re-read the task file to verify the edit.
+  - Do not backfill the commit SHA — the loop handles that post-iteration.
+  - The entire commit phase should complete in 2 tool calls (one edit, one commit), not 3–4.
+- **Command output hygiene**: The prompt must instruct the agent to minimize noisy command output that wastes context tokens. Specifically:
+  - Use quiet/silent flags when available (e.g., `--silent`, `--quiet`, `-q`) for package manager commands, linters, and build tools where only the exit code or error output matters.
+  - Redirect stderr to `/dev/null` for known-noisy commands when warnings are irrelevant to the task.
+  - When a command produces verbose output, prefer checking the exit code over reading the full output.
+- **Anti-patterns**: The prompt includes known pitfalls observed from log analysis:
+  - After running formatters, re-read modified files — formatting may change code.
+  - Write semantic test assertions, not string-matching against prompt text.
+  - Do not amend commits to add the SHA — leave it for the loop's post-iteration handling.
 
 ## 6. Quality Gates
 
@@ -269,6 +386,8 @@ Ralph enforces these quality gates via the boot prompt:
 
 Task file and config parsing must not rely on brittle regex patterns that break on minor formatting variations. Use a proper Markdown parser (e.g., `unified`/`remark`) or extract structured data from frontmatter to make parsing resilient to whitespace, bold syntax variations, and other Markdown-level changes.
 
+Shared concerns (e.g., AST traversal, field extraction) must be implemented once in a single utility module. Consumers call into the shared utility rather than reimplementing the same logic.
+
 ### 8.2 Externalized Configuration
 
 Operational parameters that change independently of code must be configurable without rebuilding:
@@ -282,6 +401,8 @@ These should be overridable via a config file (e.g., `ralph.config.json` or a se
 
 `killProcessTree` must actually traverse and terminate the full process tree. The current implementation sends signals to a single PID without walking child processes. Use process group IDs (`-pid`) or a library like `tree-kill` to ensure spawned compilers, test runners, and other children are cleaned up.
 
+Process discovery must not scan the global process table (e.g., `ps ax -o pid,command`), as this can inadvertently capture sensitive information (API keys, passwords) from unrelated processes' command-line arguments. Use PID-scoped approaches (process groups, parent-child traversal) instead.
+
 ### 8.4 Error Visibility
 
 Silent error suppression in the loop and git operations must be eliminated. All errors should be logged to stderr or to `.ralph-logs/` so users can diagnose failures. A loop iteration that fails silently and continues is worse than one that fails loudly.
@@ -290,9 +411,60 @@ Silent error suppression in the loop and git operations must be eliminated. All 
 
 The tool must not hardcode `origin` and `main` as the git remote and branch. These should be auto-detected from the current repository or configurable in project settings.
 
+### 8.6 Command Architecture
+
+Commands must be thin entry points that parse arguments and delegate to focused, single-responsibility services. Business logic — orchestration, git operations, prompt generation, etc. — belongs in independently testable service modules, not in the command handler itself.
+
+### 8.7 Async-First I/O
+
+All file system and I/O operations must use async APIs (`node:fs/promises`, `await`) consistently throughout the codebase. Synchronous variants (`mkdirSync`, `writeFileSync`, etc.) must not be used.
+
+### 8.8 Build vs. Borrow
+
+Minimize dependencies to keep the CLI lightweight, but do not hand-roll logic for problem domains that are error-prone, security-sensitive, or already solved by well-vetted libraries (e.g., process tree management, structured file format parsing/transformation). Prefer a trusted dependency over a fragile manual implementation.
+
+### 8.9 Shell Argument Safety
+
+All strings passed as arguments to shell commands (task IDs, titles, file paths, config values) must be treated as untrusted. Use array-form `execFile`/`spawn` (never shell-interpolated strings), and sanitize or validate inputs before passing them to external processes as a defense-in-depth measure.
+
 ## 9. Non-Goals
 
-- Ralph does NOT manage or install Claude Code — it assumes `claude` CLI is available
+- Ralph does NOT manage or install AI coding agents — it assumes the configured CLI is available
 - Ralph does NOT handle CI/CD — it's a local development tool
 - Ralph does NOT require a database — DB setup is project-specific
 - Ralph does NOT prescribe a specific language or framework — it works with any stack
+
+## 10. Agent Providers
+
+Ralph supports multiple AI coding agents through a provider adapter. Each provider maps ralph's needs onto the agent's CLI interface.
+
+### 10.1 Provider Interface
+
+Every provider must supply:
+
+| Capability                     | Description                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| **binary**                     | CLI executable name                                                                                     |
+| **buildArgs(prompt, options)** | Construct the argument array for a headless, single-prompt invocation (including `--model` if provided) |
+| **outputFormat**               | How to request structured (JSON/NDJSON) output, if supported                                            |
+| **supportsMaxTurns**           | Whether the agent accepts a max-turns limit                                                             |
+| **instructionsFile**           | Path to the agent's project-level instructions file                                                     |
+| **parseOutput(stream)**        | Normalize the agent's output stream into ralph's internal event format                                  |
+
+### 10.2 Supported Agents
+
+| Agent                     | Binary   | Print mode        | JSON output                   | Max turns       | Instructions file         |
+| ------------------------- | -------- | ----------------- | ----------------------------- | --------------- | ------------------------- |
+| **Claude Code** (default) | `claude` | `-p`              | `--output-format stream-json` | `--max-turns N` | `.claude/CLAUDE.md`       |
+| **Gemini CLI**            | `gemini` | `-p`              | `--output-format stream-json` | N/A             | `GEMINI.md`               |
+| **Codex CLI**             | `codex`  | `exec` subcommand | `--json`                      | N/A             | `AGENTS.md`               |
+| **Continue CLI**          | `cn`     | `-p`              | `--output-format stream-json` | `--max-turns N` | `~/.continue/config.yaml` |
+| **Cursor CLI**            | `cursor` | `-p`              | `--output-format stream-json` | N/A             | `.cursor/rules/`          |
+
+### 10.3 Behavior When Max Turns Is Unsupported
+
+For agents that do not support `--max-turns`, ralph relies on its own timeout mechanism (§3.2) to bound iteration length. The complexity scaling tiers still apply to timeout values.
+
+### 10.4 Adding New Providers
+
+New agents can be supported by implementing the provider interface (§10.1) and registering the provider. No changes to the orchestrator or prompt system should be required.
