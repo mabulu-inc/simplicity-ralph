@@ -98,10 +98,12 @@ export class LoopOrchestrator {
         'claude',
         [
           '--print',
+          '--verbose',
           '--output-format',
           'stream-json',
           '--max-turns',
           String(effectiveMaxTurns),
+          '--dangerously-skip-permissions',
           '-p',
           prompt,
         ],
