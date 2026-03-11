@@ -2,7 +2,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
 import { toString } from 'mdast-util-to-string';
-import type { Root, Heading, List, ListItem } from 'mdast';
+import type { Root, Heading, List, ListItem, InlineCode } from 'mdast';
 
 const parser = unified().use(remarkParse);
 
@@ -10,7 +10,15 @@ function parseMarkdown(content: string): Root {
   return parser.parse(content);
 }
 
-export function extractFieldFromAst(tree: Root, fieldName: string): string | undefined {
+export interface ExtractFieldOptions {
+  preferInlineCode?: boolean;
+}
+
+export function extractFieldFromAst(
+  tree: Root,
+  fieldName: string,
+  options?: ExtractFieldOptions,
+): string | undefined {
   let result: string | undefined;
 
   visit(tree, 'listItem', (node: ListItem) => {
@@ -19,7 +27,27 @@ export function extractFieldFromAst(tree: Root, fieldName: string): string | und
     const text = toString(node);
     const fieldPattern = new RegExp(`^${escapeRegex(fieldName)}:\\s*(.+)$`, 'm');
     const match = text.match(fieldPattern);
-    if (match) {
+    if (!match) return;
+
+    if (options?.preferInlineCode) {
+      let foundField = false;
+      let codeValue: string | undefined;
+
+      visit(node, (child) => {
+        if (codeValue !== undefined) return;
+        if (
+          (child.type === 'strong' || child.type === 'emphasis') &&
+          toString(child) === fieldName
+        ) {
+          foundField = true;
+        }
+        if (foundField && child.type === 'inlineCode') {
+          codeValue = (child as InlineCode).value;
+        }
+      });
+
+      result = codeValue ?? match[1].trim();
+    } else {
       result = match[1].trim();
     }
   });
@@ -40,7 +68,7 @@ export function extractHeading(tree: Root, depth: number): string | undefined {
   return result;
 }
 
-function findSection(tree: Root, headingText: string, depth: number = 2): Root['children'] {
+export function findSection(tree: Root, headingText: string, depth: number = 2): Root['children'] {
   const children = tree.children;
   let startIdx = -1;
 
