@@ -73,7 +73,7 @@ describe('runInit', () => {
     const filePath = path.join(tmpDir, 'docs', 'prompts', 'rules.md');
     expect(fs.existsSync(filePath)).toBe(true);
     const content = fs.readFileSync(filePath, 'utf-8');
-    expect(content).toContain('project-specific rules');
+    expect(content).toContain('{{project.rules}}');
   });
 
   it('creates docs/prompts/boot.md', async () => {

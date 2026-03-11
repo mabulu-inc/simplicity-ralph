@@ -9,7 +9,7 @@ import { generateMethodology } from '../templates/methodology.js';
 import { generatePrd } from '../templates/prd.js';
 import { generateTask000 } from '../templates/task-000.js';
 import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
-import { defaultRulesTemplate } from '../templates/rules-md.js';
+import { generateRules } from '../templates/rules-md.js';
 
 interface TemplateConfig {
   projectName: string;
@@ -137,20 +137,41 @@ describe('generateContinueYaml (slimmed)', () => {
   });
 });
 
-describe('defaultRulesTemplate', () => {
+describe('generateRules', () => {
   it('returns a non-empty string', () => {
-    const result = defaultRulesTemplate();
+    const result = generateRules(tsConfig);
     expect(result.length).toBeGreaterThan(0);
   });
 
   it('contains a comment explaining purpose', () => {
-    const result = defaultRulesTemplate();
-    expect(result).toContain('project-specific rules');
+    const result = generateRules(tsConfig);
+    expect(result).toContain('{{project.rules}}');
   });
 
-  it('contains example rules', () => {
-    const result = defaultRulesTemplate();
-    expect(result).toContain('Example');
+  it('includes file naming when provided', () => {
+    const result = generateRules({ ...tsConfig, fileNaming: 'kebab-case' });
+    expect(result).toContain('kebab-case');
+  });
+
+  it('omits file naming when not provided', () => {
+    const { fileNaming: _, ...noFileNaming } = tsConfig;
+    const result = generateRules(noFileNaming);
+    expect(result).not.toContain('File naming');
+  });
+
+  it('includes no-database rule when database is absent', () => {
+    const result = generateRules(tsConfig);
+    expect(result).toContain('No database');
+  });
+
+  it('omits no-database rule when database is set', () => {
+    const result = generateRules({ ...tsConfig, database: 'PostgreSQL' });
+    expect(result).not.toContain('No database');
+  });
+
+  it('includes node_modules warning for TypeScript', () => {
+    const result = generateRules(tsConfig);
+    expect(result).toContain('node_modules');
   });
 });
 

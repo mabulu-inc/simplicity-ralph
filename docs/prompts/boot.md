@@ -24,6 +24,8 @@ PROJECT CONFIG:
 - File naming: {{config.fileNaming}}
 - Database: {{config.database}}
 
+{{project.rules}}
+
 WORKFLOW:
 
 1. BOOT: Read the task file and PRD sections it references. Understand the codebase.

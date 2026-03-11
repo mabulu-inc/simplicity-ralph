@@ -11,7 +11,7 @@ import { generateMethodology } from '../templates/methodology.js';
 import { generatePrd } from '../templates/prd.js';
 import { generateTask000 } from '../templates/task-000.js';
 import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
-import { defaultRulesTemplate } from '../templates/rules-md.js';
+import { generateRules } from '../templates/rules-md.js';
 import { generateRalphConfigJson } from '../templates/ralph-config-json.js';
 
 export interface InitAnswers {
@@ -135,7 +135,7 @@ export async function runInit(rootDir: string, answers: InitAnswers): Promise<In
     await writeFile(rootDir, '.claude/CLAUDE.md', generateClaudeMd(config), overwrite, result);
   }
   await writeFile(rootDir, 'docs/prompts/boot.md', defaultBootPromptTemplate(), overwrite, result);
-  await writeFile(rootDir, 'docs/prompts/rules.md', defaultRulesTemplate(), overwrite, result);
+  await writeFile(rootDir, 'docs/prompts/rules.md', generateRules(config), overwrite, result);
 
   await writeFile(
     rootDir,
