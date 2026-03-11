@@ -193,6 +193,8 @@ Real-time status display showing progress and current activity.
 - Progress bar with task counts (done/total, percentage)
 - Current task ID and title
 - Phase timeline for the active iteration (Boot → Red → Green → Verify → Commit)
+- Current phase with elapsed time (e.g., "Current phase: Green (2m 15s ago)")
+- Last log line — the most recent text content from the agent, truncated to fit the terminal width, so the user can follow along in real time
 
 **Behavior:**
 
