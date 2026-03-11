@@ -76,9 +76,10 @@
 - [x] T-044: Add file naming prompt to ralph init — $0.32
 - [x] T-045: Make ralph init idempotent with smart defaults and diff-based overwrite — $0.93
 
-## 11 — Post-Iteration & Housekeeping ($1.38)
+## 11 — Post-Iteration & Housekeeping ($1.99)
 
 - [x] T-046: Wire post-iteration metadata updates into orchestrator — $0.65
 - [x] T-047: Add current phase timing and last log line to monitor — $0.73
+- [x] T-048: Add --json flag to ralph monitor for machine-readable output — $0.61
 
-**Grand Total: $38.10**
+**Grand Total: $38.71**
