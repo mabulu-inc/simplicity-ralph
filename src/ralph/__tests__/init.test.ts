@@ -68,12 +68,22 @@ describe('runInit', () => {
     expect(content).toContain('**Language**: TypeScript');
   });
 
+  it('creates docs/prompts/boot.md', async () => {
+    await runInit(tmpDir, defaultAnswers);
+    const filePath = path.join(tmpDir, 'docs', 'prompts', 'boot.md');
+    expect(fs.existsSync(filePath)).toBe(true);
+    const content = fs.readFileSync(filePath, 'utf-8');
+    expect(content).toContain('{{task.id}}');
+    expect(content).toContain('{{config.language}}');
+  });
+
   it('returns a summary of created files', async () => {
     const result = await runInit(tmpDir, defaultAnswers);
     expect(result.created).toContain('docs/PRD.md');
     expect(result.created).toContain('docs/RALPH-METHODOLOGY.md');
     expect(result.created).toContain('docs/tasks/T-000.md');
     expect(result.created).toContain('.claude/CLAUDE.md');
+    expect(result.created).toContain('docs/prompts/boot.md');
     expect(result.skipped).toHaveLength(0);
   });
 
@@ -128,6 +138,7 @@ describe('runInit', () => {
   it('creates necessary parent directories', async () => {
     await runInit(tmpDir, defaultAnswers);
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'tasks'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.claude'))).toBe(true);
   });
 

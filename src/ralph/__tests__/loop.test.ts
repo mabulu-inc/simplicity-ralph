@@ -27,14 +27,8 @@ vi.mock('../core/git.js', () => ({
 
 import * as processModule from '../core/process.js';
 import * as gitModule from '../core/git.js';
-import {
-  parseLoopOptions,
-  preflightChecks,
-  generateBootPrompt,
-  scaleForComplexity,
-} from '../commands/loop.js';
+import { parseLoopOptions, preflightChecks, scaleForComplexity } from '../commands/loop.js';
 import type { Task } from '../core/tasks.js';
-import type { ProjectConfig } from '../core/config.js';
 
 const spawnWithCapture = vi.mocked(processModule.spawnWithCapture);
 const monitorProcess = vi.mocked(processModule.monitorProcess);
@@ -209,110 +203,20 @@ describe('preflightChecks', () => {
     expect(result.errors).toContain('docs/tasks/ directory not found');
   });
 
-  it('succeeds when tasks directory exists', async () => {
+  it('fails when boot.md does not exist', async () => {
     await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
+    const result = await preflightChecks(tmpDir);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain('docs/prompts/boot.md not found');
+  });
+
+  it('succeeds when tasks directory and boot.md exist', async () => {
+    await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'template');
     const result = await preflightChecks(tmpDir);
     expect(result.ok).toBe(true);
     expect(result.errors).toHaveLength(0);
-  });
-});
-
-describe('generateBootPrompt', () => {
-  const mockTask: Task = {
-    id: 'T-005',
-    number: 5,
-    title: 'Build feature X',
-    status: 'TODO',
-    milestone: '2 — Core',
-    depends: ['T-003', 'T-004'],
-    prdReference: '§3.1',
-    completed: undefined,
-    commit: undefined,
-    cost: undefined,
-    blocked: false,
-    description: 'Implement feature X as described in the PRD.',
-  };
-
-  const mockConfig: ProjectConfig = {
-    language: 'TypeScript',
-    fileNaming: 'kebab-case',
-    packageManager: 'pnpm',
-    testingFramework: 'Vitest',
-    qualityCheck: 'pnpm check',
-    testCommand: 'pnpm test',
-    database: undefined,
-  };
-
-  it('includes the task ID and title', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('T-005');
-    expect(prompt).toContain('Build feature X');
-  });
-
-  it('includes PRD reference', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('§3.1');
-  });
-
-  it('includes project config values', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('TypeScript');
-    expect(prompt).toContain('pnpm');
-    expect(prompt).toContain('Vitest');
-    expect(prompt).toContain('pnpm check');
-  });
-
-  it('includes TDD methodology instructions', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('red');
-    expect(prompt).toContain('green');
-    expect(prompt).toContain('TDD');
-  });
-
-  it('includes quality gate instructions', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('pnpm check');
-    expect(prompt.toLowerCase()).toContain('quality');
-  });
-
-  it('includes one-commit-per-task rule', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('ONE commit per task');
-  });
-
-  it('includes task file update instructions', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('Status');
-    expect(prompt).toContain('DONE');
-    expect(prompt).toContain('same commit');
-  });
-
-  it('includes commit message format', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('T-NNN:');
-  });
-
-  it('includes tool usage rules', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('Read tool');
-    expect(prompt).toContain('Grep');
-  });
-
-  it('includes phase logging instructions', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('[PHASE]');
-    expect(prompt).toContain('Boot');
-    expect(prompt).toContain('Red');
-    expect(prompt).toContain('Green');
-    expect(prompt).toContain('Verify');
-    expect(prompt).toContain('Commit');
-  });
-
-  it('includes bash timeout guidance', () => {
-    const prompt = generateBootPrompt(mockTask, mockConfig);
-    expect(prompt).toContain('120000ms');
-    expect(prompt).toContain('120 seconds');
-    expect(prompt).toContain('timeout');
   });
 });
 
@@ -323,9 +227,14 @@ describe('run', () => {
 
   async function setupProject(taskContent: string = TODO_TASK) {
     await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
     await mkdir(join(tmpDir, '.claude'), { recursive: true });
     await writeFile(join(tmpDir, '.claude', 'CLAUDE.md'), CLAUDE_MD);
     await writeFile(join(tmpDir, 'docs', 'tasks', 'T-001.md'), taskContent);
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'boot.md'),
+      'Task {{task.id}}: {{task.title}}\nConfig: {{config.language}}',
+    );
   }
 
   function mockChildProcess() {
@@ -377,6 +286,8 @@ describe('run', () => {
 
   it('exits with error when config is missing', async () => {
     await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'template');
 
     const { run } = await import('../commands/loop.js');
     await run([], tmpDir);
@@ -397,8 +308,10 @@ describe('run', () => {
 
   it('exits when no eligible task found', async () => {
     await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
     await mkdir(join(tmpDir, '.claude'), { recursive: true });
     await writeFile(join(tmpDir, '.claude', 'CLAUDE.md'), CLAUDE_MD);
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Task {{task.id}}: {{task.title}}');
     await writeFile(
       join(tmpDir, 'docs', 'tasks', 'T-002.md'),
       `# T-002: Blocked task\n\n- **Status**: TODO\n- **Milestone**: 1 — Setup\n- **Depends**: T-001\n- **PRD Reference**: §1\n\n## Description\n\nA blocked task.\n`,

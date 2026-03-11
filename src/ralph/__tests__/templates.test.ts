@@ -4,6 +4,7 @@ import { generateClaudeMd } from '../templates/claude-md.js';
 import { generateMethodology } from '../templates/methodology.js';
 import { generatePrd } from '../templates/prd.js';
 import { generateTask000 } from '../templates/task-000.js';
+import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
 
 interface TemplateConfig {
   projectName: string;
@@ -156,6 +157,15 @@ describe('generatePrd', () => {
   it('works with different project names', () => {
     const result = generatePrd('data-pipeline');
     expect(result).toContain('# data-pipeline');
+  });
+});
+
+describe('defaultBootPromptTemplate', () => {
+  it('is a non-empty string with template variables', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template.length).toBeGreaterThan(0);
+    expect(template).toContain('{{task.id}}');
+    expect(template).toContain('{{config.language}}');
   });
 });
 

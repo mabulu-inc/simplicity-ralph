@@ -6,6 +6,7 @@ import { generateClaudeMd, type InitConfig } from '../templates/claude-md.js';
 import { generateMethodology } from '../templates/methodology.js';
 import { generatePrd } from '../templates/prd.js';
 import { generateTask000 } from '../templates/task-000.js';
+import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
 
 export interface InitAnswers {
   projectName: string;
@@ -102,6 +103,7 @@ export async function runInit(rootDir: string, answers: InitAnswers): Promise<In
   await writeFile(rootDir, 'docs/RALPH-METHODOLOGY.md', generateMethodology(), overwrite, result);
   await writeFile(rootDir, 'docs/tasks/T-000.md', generateTask000(config), overwrite, result);
   await writeFile(rootDir, '.claude/CLAUDE.md', generateClaudeMd(config), overwrite, result);
+  await writeFile(rootDir, 'docs/prompts/boot.md', defaultBootPromptTemplate(), overwrite, result);
 
   await updatePackageJson(rootDir, answers);
 

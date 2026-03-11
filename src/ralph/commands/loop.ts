@@ -3,7 +3,6 @@ export {
   parseLoopOptions,
   preflightChecks,
   scaleForComplexity,
-  generateBootPrompt,
   LoopOrchestrator,
   LoopGitService,
 } from './loop/index.js';

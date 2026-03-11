@@ -47,9 +47,14 @@ describe('LoopOrchestrator', () => {
 
   async function setupProject(taskContent: string = TODO_TASK) {
     await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
     await mkdir(join(tmpDir, '.claude'), { recursive: true });
     await writeFile(join(tmpDir, '.claude', 'CLAUDE.md'), CLAUDE_MD);
     await writeFile(join(tmpDir, 'docs', 'tasks', 'T-001.md'), taskContent);
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'boot.md'),
+      'Task {{task.id}}: {{task.title}}\nConfig: {{config.language}}',
+    );
   }
 
   function mockChildProcess() {
@@ -105,8 +110,10 @@ describe('LoopOrchestrator', () => {
 
   it('exits when no eligible task found', async () => {
     await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
     await mkdir(join(tmpDir, '.claude'), { recursive: true });
     await writeFile(join(tmpDir, '.claude', 'CLAUDE.md'), CLAUDE_MD);
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Task {{task.id}}: {{task.title}}');
     await writeFile(
       join(tmpDir, 'docs', 'tasks', 'T-002.md'),
       `# T-002: Blocked task\n\n- **Status**: TODO\n- **Milestone**: 1 — Setup\n- **Depends**: T-001\n- **PRD Reference**: §1\n\n## Description\n\nA blocked task.\n`,

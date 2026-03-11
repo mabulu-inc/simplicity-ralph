@@ -4,7 +4,7 @@ import { scanTasks, findNextTask, allDone, countByStatus } from '../../core/task
 import { readConfig } from '../../core/config.js';
 import { spawnWithCapture, monitorProcess } from '../../core/process.js';
 import { writePidFile, removePidFile } from '../../core/pid-file.js';
-import { generateBootPrompt } from './prompt-generator.js';
+import { loadAndInterpolate } from '../../core/prompt-template.js';
 import { LoopGitService } from './git-service.js';
 import { scaleForComplexity, type LoopOptions } from './index.js';
 
@@ -80,7 +80,7 @@ export class LoopOrchestrator {
       }
       const headBefore = headBeforeResult.sha;
 
-      const prompt = generateBootPrompt(nextTask, config);
+      const prompt = await loadAndInterpolate(this.projectDir, nextTask, config);
 
       const now = new Date();
       const timestamp = [

@@ -6,7 +6,6 @@ import { computeTaskComplexity, type ComplexityTier } from '../../core/complexit
 import { getTierScaling } from '../../core/defaults.js';
 import { LoopOrchestrator } from './orchestrator.js';
 
-export { generateBootPrompt } from './prompt-generator.js';
 export { LoopGitService } from './git-service.js';
 export { LoopOrchestrator } from './orchestrator.js';
 
@@ -95,6 +94,12 @@ export async function preflightChecks(projectDir: string): Promise<PreflightResu
     await access(join(projectDir, 'docs', 'tasks'));
   } catch {
     errors.push('docs/tasks/ directory not found');
+  }
+
+  try {
+    await access(join(projectDir, 'docs', 'prompts', 'boot.md'));
+  } catch {
+    errors.push('docs/prompts/boot.md not found');
   }
 
   return { ok: errors.length === 0, errors };

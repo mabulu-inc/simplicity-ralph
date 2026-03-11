@@ -1,7 +1,4 @@
-import type { Task } from '../../core/tasks.js';
-import type { ProjectConfig } from '../../core/config.js';
-
-export function generateBootPrompt(task: Task, config: ProjectConfig): string {
+export function defaultBootPromptTemplate(): string {
   return `You are in Ralph Loop iteration. Follow the Ralph Methodology.
 
 PHASE LOGGING (MANDATORY): Before starting each phase, output a marker line EXACTLY like this:
@@ -10,34 +7,36 @@ The phases in order are:
   1. Boot — reading task files, PRD, and existing code to understand the task
   2. Red — writing failing tests
   3. Green — implementing the minimum code to pass tests
-  4. Verify — running ${config.qualityCheck} (lint, format, typecheck, build, test:coverage)
+  4. Verify — running {{config.qualityCheck}} (lint, format, typecheck, build, test:coverage)
   5. Commit — staging files and committing
 
-CURRENT TASK: ${task.id}: ${task.title}
-PRD Reference: ${task.prdReference}
-Description: ${task.description}
+CURRENT TASK: {{task.id}}: {{task.title}}
+PRD Reference: {{task.prdReference}}
+Description: {{task.description}}
 
 PROJECT CONFIG:
-- Language: ${config.language}
-- Package manager: ${config.packageManager}
-- Testing framework: ${config.testingFramework}
-- quality check: ${config.qualityCheck}
-- Test command: ${config.testCommand}${config.fileNaming ? `\n- File naming: ${config.fileNaming}` : ''}${config.database ? `\n- Database: ${config.database}` : ''}
+- Language: {{config.language}}
+- Package manager: {{config.packageManager}}
+- Testing framework: {{config.testingFramework}}
+- quality check: {{config.qualityCheck}}
+- Test command: {{config.testCommand}}
+- File naming: {{config.fileNaming}}
+- Database: {{config.database}}
 
 WORKFLOW:
 1. BOOT: Read the task file and PRD sections it references. Understand the codebase.
-2. EXECUTE: Implement using strict red/green TDD — write failing tests FIRST, then implement the minimum to pass. Run '${config.qualityCheck}' after each layer — do NOT wait until the end.
+2. EXECUTE: Implement using strict red/green TDD — write failing tests FIRST, then implement the minimum to pass. Run '{{config.qualityCheck}}' after each layer — do NOT wait until the end.
 3. Quality gates (mandatory before commit):
    - Every line of production code must be exercised by a test. No untested code.
    - No code smells: no dead code, no commented-out blocks, no TODO/FIXME/HACK, no duplication.
    - No security vulnerabilities.
-   - Run '${config.qualityCheck}' — must pass clean.
-4. COMMIT: ONE commit per task. Message format 'T-NNN: description' (e.g. '${task.id}: ...').
+   - Run '{{config.qualityCheck}}' — must pass clean.
+4. COMMIT: ONE commit per task. Message format 'T-NNN: description' (e.g. '{{task.id}}: ...').
    The task file update (Status→DONE, Completed timestamp, Commit SHA, Completion Notes) MUST be in the same commit as the code — never a separate commit.
 5. TOOL USAGE (STRICT):
    - Read files: ALWAYS use the Read tool. NEVER use cat, head, tail, or sed to read files.
    - Search code: ALWAYS use Grep or Glob tools. NEVER use grep, find, or ls in Bash.
-   - The ONLY acceptable Bash uses are: git, ${config.packageManager}, docker, and commands with no dedicated tool.
+   - The ONLY acceptable Bash uses are: git, {{config.packageManager}}, docker, and commands with no dedicated tool.
 6. BASH TIMEOUTS: When running test/build commands via Bash, set timeout to at least 120000ms (120 seconds). TypeScript compilation and test suites need time. Never use 30000ms or less for test/build commands.
 7. Do NOT push to origin — the loop handles that.
 8. Complete ONE task, then STOP. Do not start a second task.`;

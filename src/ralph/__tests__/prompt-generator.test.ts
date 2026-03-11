@@ -1,127 +1,76 @@
 import { describe, it, expect } from 'vitest';
-import { generateBootPrompt } from '../commands/loop/prompt-generator.js';
-import type { Task } from '../core/tasks.js';
-import type { ProjectConfig } from '../core/config.js';
+import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
 
-const mockTask: Task = {
-  id: 'T-005',
-  number: 5,
-  title: 'Build feature X',
-  status: 'TODO',
-  milestone: '2 — Core',
-  depends: ['T-003', 'T-004'],
-  prdReference: '§3.1',
-  completed: undefined,
-  commit: undefined,
-  cost: undefined,
-  blocked: false,
-  description: 'Implement feature X as described in the PRD.',
-};
+describe('defaultBootPromptTemplate', () => {
+  it('returns a non-empty string', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template.length).toBeGreaterThan(0);
+  });
 
-const mockConfig: ProjectConfig = {
-  language: 'TypeScript',
-  fileNaming: 'kebab-case',
-  packageManager: 'pnpm',
-  testingFramework: 'Vitest',
-  qualityCheck: 'pnpm check',
-  testCommand: 'pnpm test',
-  database: undefined,
-};
+  it('contains task variable placeholders', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('{{task.id}}');
+    expect(template).toContain('{{task.title}}');
+    expect(template).toContain('{{task.description}}');
+    expect(template).toContain('{{task.prdReference}}');
+  });
 
-describe('PromptGenerator', () => {
-  describe('generateBootPrompt', () => {
-    it('includes the task ID and title', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('T-005');
-      expect(prompt).toContain('Build feature X');
-    });
+  it('contains config variable placeholders', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('{{config.language}}');
+    expect(template).toContain('{{config.packageManager}}');
+    expect(template).toContain('{{config.testingFramework}}');
+    expect(template).toContain('{{config.qualityCheck}}');
+    expect(template).toContain('{{config.testCommand}}');
+  });
 
-    it('includes PRD reference', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('§3.1');
-    });
+  it('contains optional config placeholders', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('{{config.fileNaming}}');
+    expect(template).toContain('{{config.database}}');
+  });
 
-    it('includes project config values', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('TypeScript');
-      expect(prompt).toContain('pnpm');
-      expect(prompt).toContain('Vitest');
-      expect(prompt).toContain('pnpm check');
-    });
+  it('contains phase logging instructions', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('[PHASE]');
+    expect(template).toContain('Boot');
+    expect(template).toContain('Red');
+    expect(template).toContain('Green');
+    expect(template).toContain('Verify');
+    expect(template).toContain('Commit');
+  });
 
-    it('includes TDD methodology instructions', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('red');
-      expect(prompt).toContain('green');
-      expect(prompt).toContain('TDD');
-    });
+  it('contains TDD methodology instructions', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('red');
+    expect(template).toContain('green');
+    expect(template).toContain('TDD');
+  });
 
-    it('includes quality gate instructions', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('pnpm check');
-      expect(prompt.toLowerCase()).toContain('quality');
-    });
+  it('contains quality gate instructions', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template.toLowerCase()).toContain('quality');
+  });
 
-    it('includes one-commit-per-task rule', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('ONE commit per task');
-    });
+  it('contains one-commit-per-task rule', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('ONE commit per task');
+  });
 
-    it('includes task file update instructions', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('Status');
-      expect(prompt).toContain('DONE');
-      expect(prompt).toContain('same commit');
-    });
+  it('contains tool usage rules', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('Read tool');
+    expect(template).toContain('Grep');
+  });
 
-    it('includes commit message format', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('T-NNN:');
-    });
+  it('contains bash timeout guidance', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('120000ms');
+    expect(template).toContain('120 seconds');
+  });
 
-    it('includes tool usage rules', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('Read tool');
-      expect(prompt).toContain('Grep');
-    });
-
-    it('includes phase logging instructions', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('[PHASE]');
-      expect(prompt).toContain('Boot');
-      expect(prompt).toContain('Red');
-      expect(prompt).toContain('Green');
-      expect(prompt).toContain('Verify');
-      expect(prompt).toContain('Commit');
-    });
-
-    it('includes bash timeout guidance', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('120000ms');
-      expect(prompt).toContain('120 seconds');
-      expect(prompt).toContain('timeout');
-    });
-
-    it('includes file naming when configured', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).toContain('kebab-case');
-    });
-
-    it('excludes file naming when not configured', () => {
-      const configNoNaming = { ...mockConfig, fileNaming: undefined };
-      const prompt = generateBootPrompt(mockTask, configNoNaming);
-      expect(prompt).not.toContain('File naming');
-    });
-
-    it('includes database when configured', () => {
-      const configWithDb = { ...mockConfig, database: 'PostgreSQL' };
-      const prompt = generateBootPrompt(mockTask, configWithDb);
-      expect(prompt).toContain('PostgreSQL');
-    });
-
-    it('excludes database when not configured', () => {
-      const prompt = generateBootPrompt(mockTask, mockConfig);
-      expect(prompt).not.toContain('Database');
-    });
+  it('contains commit message format', () => {
+    const template = defaultBootPromptTemplate();
+    expect(template).toContain('T-NNN:');
   });
 });
