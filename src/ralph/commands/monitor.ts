@@ -107,7 +107,8 @@ export function formatDuration(ms: number): string {
   return `${seconds}s`;
 }
 
-export function formatPhaseTimeline(phases: PhaseTimestamp[]): string {
+export function formatPhaseTimeline(phases: PhaseTimestamp[], now?: number): string {
+  const referenceTime = now ?? Date.now();
   const phaseMap = new Map<string, PhaseTimestamp>();
   for (const p of phases) {
     phaseMap.set(p.phase, p);
@@ -124,7 +125,7 @@ export function formatPhaseTimeline(phases: PhaseTimestamp[]): string {
     if (isLast) {
       // Active phase: show live timer if we have a timestamp
       if (entry.startedAt) {
-        const elapsed = Date.now() - entry.startedAt.getTime();
+        const elapsed = referenceTime - entry.startedAt.getTime();
         return `● ${name} (${formatDuration(elapsed)})`;
       }
       return `● ${name}`;
@@ -396,6 +397,22 @@ export function formatElapsed(ms: number): string {
   return `${seconds}s ago`;
 }
 
+function computeFrozenNow(data: MonitorData): number {
+  const candidates: number[] = [];
+  if (data.lastOutputTimestamp) {
+    candidates.push(data.lastOutputTimestamp.getTime());
+  }
+  if (data.lastActivity?.timestamp) {
+    candidates.push(data.lastActivity.timestamp.getTime());
+  }
+  for (const p of data.phaseTimestamps) {
+    if (p.startedAt) {
+      candidates.push(p.startedAt.getTime());
+    }
+  }
+  return candidates.length > 0 ? Math.max(...candidates) : Date.now();
+}
+
 export interface MonitorData {
   status: 'RUNNING' | 'STOPPED';
   done: number;
@@ -413,18 +430,22 @@ export function formatMonitorOutput(data: MonitorData): string {
   lines.push(`Status: ${data.status}`);
   lines.push(`Progress: ${formatProgressBar(data.done, data.total)}`);
 
+  // When STOPPED, freeze all "ago" timers at the last known timestamp
+  // instead of letting them tick up from Date.now()
+  const now = data.status === 'STOPPED' ? computeFrozenNow(data) : Date.now();
+
   if (data.currentTaskId) {
     const title = data.currentTaskTitle ? `: ${data.currentTaskTitle}` : '';
     lines.push(`Current task: ${data.currentTaskId}${title}`);
   }
 
   if (data.phaseTimestamps.length > 0 || data.status === 'RUNNING') {
-    lines.push(`Phases: ${formatPhaseTimeline(data.phaseTimestamps)}`);
+    lines.push(`Phases: ${formatPhaseTimeline(data.phaseTimestamps, now)}`);
   }
 
   if (data.lastLogLine) {
     if (data.lastOutputTimestamp) {
-      const staleness = Date.now() - data.lastOutputTimestamp.getTime();
+      const staleness = now - data.lastOutputTimestamp.getTime();
       lines.push(`Last output (${formatElapsed(staleness)}): ${data.lastLogLine}`);
     } else {
       lines.push(`Last output: ${data.lastLogLine}`);
@@ -437,7 +458,7 @@ export function formatMonitorOutput(data: MonitorData): string {
       activityLine += ` — ${data.lastActivity.detail}`;
     }
     if (data.lastActivity.timestamp) {
-      const elapsed = Date.now() - data.lastActivity.timestamp.getTime();
+      const elapsed = now - data.lastActivity.timestamp.getTime();
       activityLine += ` (${formatElapsed(elapsed)})`;
     }
     lines.push(activityLine);

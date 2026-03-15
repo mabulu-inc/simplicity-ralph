@@ -751,6 +751,103 @@ describe('formatMonitorOutput', () => {
     expect(output).toContain('Activity: Grep');
     expect(output).not.toContain('ago');
   });
+
+  it('freezes last output staleness timer when STOPPED', () => {
+    // Output was 30s before activity; activity is the latest timestamp
+    const activityTime = new Date('2026-03-10T12:05:00Z');
+    const outputTime = new Date('2026-03-10T12:04:30Z');
+    const output = formatMonitorOutput({
+      status: 'STOPPED',
+      done: 5,
+      total: 10,
+      currentTaskId: 'T-005',
+      currentTaskTitle: 'Some task',
+      phaseTimestamps: [],
+      lastLogLine: 'Final output',
+      lastOutputTimestamp: outputTime,
+      lastActivity: { tool: 'Bash', detail: 'pnpm test', timestamp: activityTime },
+    });
+    // Should show 30s ago (frozen relative to activity time), not growing
+    expect(output).toContain('Last output (30s ago): Final output');
+  });
+
+  it('freezes activity staleness timer when STOPPED', () => {
+    // Activity is 10s after output; output timestamp is frozen reference
+    const outputTime = new Date('2026-03-10T12:04:30Z');
+    const activityTime = new Date('2026-03-10T12:04:40Z');
+    const output = formatMonitorOutput({
+      status: 'STOPPED',
+      done: 5,
+      total: 10,
+      currentTaskId: 'T-005',
+      currentTaskTitle: 'Some task',
+      phaseTimestamps: [],
+      lastLogLine: 'Final output',
+      lastOutputTimestamp: outputTime,
+      lastActivity: { tool: 'Read', detail: 'src/foo.ts', timestamp: activityTime },
+    });
+    // Activity is the latest timestamp, so 0s ago relative to itself
+    expect(output).toContain('Activity: Read — src/foo.ts (0s ago)');
+  });
+
+  it('freezes phase timeline active timer when STOPPED', () => {
+    const bootStart = new Date('2026-03-10T12:00:00Z');
+    const redStart = new Date('2026-03-10T12:00:45Z');
+    // Last activity is the latest timestamp — 30s after Red started
+    const activityTime = new Date('2026-03-10T12:01:15Z');
+    const output = formatMonitorOutput({
+      status: 'STOPPED',
+      done: 5,
+      total: 10,
+      currentTaskId: 'T-005',
+      currentTaskTitle: 'Some task',
+      phaseTimestamps: [
+        { phase: 'Boot', startedAt: bootStart },
+        { phase: 'Red', startedAt: redStart },
+      ],
+      lastLogLine: null,
+      lastOutputTimestamp: null,
+      lastActivity: { tool: 'Bash', detail: null, timestamp: activityTime },
+    });
+    // Boot duration: 45s (Boot→Red), Red active duration frozen at 30s (Red→activity)
+    expect(output).toContain('Boot (45s)');
+    expect(output).toContain('Red (30s)');
+  });
+
+  it('does not freeze timers when RUNNING', () => {
+    const fiveSecondsAgo = new Date(Date.now() - 5_000);
+    const output = formatMonitorOutput({
+      status: 'RUNNING',
+      done: 3,
+      total: 10,
+      currentTaskId: 'T-004',
+      currentTaskTitle: 'Some task',
+      phaseTimestamps: [],
+      lastLogLine: 'Some output',
+      lastOutputTimestamp: fiveSecondsAgo,
+      lastActivity: { tool: 'Read', detail: null, timestamp: fiveSecondsAgo },
+    });
+    // Should show ~5s ago (live, computed from Date.now())
+    expect(output).toMatch(/Last output \(5s ago\)/);
+    expect(output).toMatch(/Activity: Read \(5s ago\)/);
+  });
+
+  it('freezes timers using output timestamp when no activity timestamp', () => {
+    const outputTime = new Date('2026-03-10T12:04:30Z');
+    const output = formatMonitorOutput({
+      status: 'STOPPED',
+      done: 5,
+      total: 10,
+      currentTaskId: 'T-005',
+      currentTaskTitle: 'Some task',
+      phaseTimestamps: [],
+      lastLogLine: 'Final output',
+      lastOutputTimestamp: outputTime,
+      lastActivity: null,
+    });
+    // Output staleness frozen at 0s (output is the latest timestamp)
+    expect(output).toContain('Last output (0s ago): Final output');
+  });
 });
 
 describe('ralph monitor (run)', () => {
