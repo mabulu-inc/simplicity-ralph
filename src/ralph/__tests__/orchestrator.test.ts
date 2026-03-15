@@ -272,7 +272,16 @@ describe('LoopOrchestrator', () => {
     const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts());
     await orchestrator.execute();
 
-    expect(discardUnstaged).toHaveBeenCalledWith(tmpDir);
+    expect(discardUnstaged).toHaveBeenCalledWith(
+      tmpDir,
+      expect.arrayContaining([
+        'docs/tasks/',
+        'docs/PRD.md',
+        'docs/prompts/',
+        'docs/RALPH-METHODOLOGY.md',
+        'ralph.config.json',
+      ]),
+    );
   });
 
   it('creates log file with task ID', async () => {

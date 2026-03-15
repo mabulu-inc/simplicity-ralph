@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
@@ -103,6 +103,92 @@ describe('git operations', () => {
       await discardUnstaged(dir);
       const status = git(dir, 'status --porcelain');
       expect(status).toContain('M  a.txt');
+    });
+
+    it('preserves modified files in protected paths', async () => {
+      await mkdir(join(dir, 'docs', 'tasks'), { recursive: true });
+      await mkdir(join(dir, 'docs', 'prompts'), { recursive: true });
+      await writeFile(join(dir, 'docs', 'tasks', 'T-001.md'), 'original');
+      await writeFile(join(dir, 'docs', 'prompts', 'boot.md'), 'original prompt');
+      await writeFile(join(dir, 'src.ts'), 'original src');
+      git(dir, 'add .');
+      git(dir, 'commit -m "add files"');
+
+      // Modify files in protected and non-protected paths
+      await writeFile(join(dir, 'docs', 'tasks', 'T-001.md'), 'edited task');
+      await writeFile(join(dir, 'docs', 'prompts', 'boot.md'), 'edited prompt');
+      await writeFile(join(dir, 'src.ts'), 'dirty src');
+
+      await discardUnstaged(dir, [
+        'docs/tasks/',
+        'docs/prompts/',
+        'docs/PRD.md',
+        'docs/RALPH-METHODOLOGY.md',
+        'ralph.config.json',
+      ]);
+
+      // Protected files should still have edits
+      expect(await readFile(join(dir, 'docs', 'tasks', 'T-001.md'), 'utf-8')).toBe('edited task');
+      expect(await readFile(join(dir, 'docs', 'prompts', 'boot.md'), 'utf-8')).toBe(
+        'edited prompt',
+      );
+
+      // Non-protected files should be restored
+      expect(await readFile(join(dir, 'src.ts'), 'utf-8')).toBe('original src');
+    });
+
+    it('preserves untracked files in protected paths', async () => {
+      await mkdir(join(dir, 'docs', 'tasks'), { recursive: true });
+      await writeFile(join(dir, 'dummy.txt'), 'init');
+      git(dir, 'add .');
+      git(dir, 'commit -m "initial"');
+
+      // Create untracked files in both protected and non-protected paths
+      await writeFile(join(dir, 'docs', 'tasks', 'T-099.md'), 'new task');
+      await writeFile(join(dir, 'untracked.tmp'), 'junk');
+
+      await discardUnstaged(dir, [
+        'docs/tasks/',
+        'docs/prompts/',
+        'docs/PRD.md',
+        'docs/RALPH-METHODOLOGY.md',
+        'ralph.config.json',
+      ]);
+
+      // Protected untracked files survive
+      expect(await readFile(join(dir, 'docs', 'tasks', 'T-099.md'), 'utf-8')).toBe('new task');
+
+      // Non-protected untracked files are removed
+      await expect(readFile(join(dir, 'untracked.tmp'), 'utf-8')).rejects.toThrow();
+    });
+
+    it('preserves protected exact-match files', async () => {
+      await writeFile(join(dir, 'ralph.config.json'), '{}');
+      await writeFile(join(dir, 'other.json'), '{}');
+      git(dir, 'add .');
+      git(dir, 'commit -m "init"');
+
+      await writeFile(join(dir, 'ralph.config.json'), '{"edited": true}');
+      await writeFile(join(dir, 'other.json'), '{"dirty": true}');
+
+      await discardUnstaged(dir, [
+        'docs/tasks/',
+        'docs/prompts/',
+        'docs/PRD.md',
+        'docs/RALPH-METHODOLOGY.md',
+        'ralph.config.json',
+      ]);
+
+      expect(await readFile(join(dir, 'ralph.config.json'), 'utf-8')).toBe('{"edited": true}');
+      expect(await readFile(join(dir, 'other.json'), 'utf-8')).toBe('{}');
+    });
+
+    it('without protected paths, behaves like original (discards all)', async () => {
+      await makeCommit(dir, 'a.txt', 'hello', 'initial');
+      await writeFile(join(dir, 'a.txt'), 'dirty');
+      await discardUnstaged(dir);
+      const content = await readFile(join(dir, 'a.txt'), 'utf-8');
+      expect(content).toBe('hello');
     });
   });
 

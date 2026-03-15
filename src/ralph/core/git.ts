@@ -23,8 +23,38 @@ export async function isWorkingTreeClean(cwd: string): Promise<boolean> {
   return status === '';
 }
 
-export async function discardUnstaged(cwd: string): Promise<void> {
-  await run(cwd, ['checkout', '--', '.']);
+function isProtectedPath(filePath: string, protectedPaths: string[]): boolean {
+  return protectedPaths.some((p) => {
+    if (p.endsWith('/')) {
+      return filePath.startsWith(p);
+    }
+    return filePath === p;
+  });
+}
+
+export async function discardUnstaged(cwd: string, protectedPaths?: string[]): Promise<void> {
+  if (!protectedPaths || protectedPaths.length === 0) {
+    await run(cwd, ['checkout', '--', '.']);
+    return;
+  }
+
+  // Restore modified tracked files, excluding protected paths
+  const diffOutput = await run(cwd, ['diff', '--name-only']).catch(() => '');
+  if (diffOutput) {
+    const filesToRestore = diffOutput
+      .split('\n')
+      .filter((f) => f && !isProtectedPath(f, protectedPaths));
+    if (filesToRestore.length > 0) {
+      await run(cwd, ['checkout', '--', ...filesToRestore]);
+    }
+  }
+
+  // Clean untracked files, excluding protected paths
+  const cleanArgs = ['clean', '-fd'];
+  for (const p of protectedPaths) {
+    cleanArgs.push('-e', p);
+  }
+  await run(cwd, cleanArgs);
 }
 
 export async function getCommitLog(

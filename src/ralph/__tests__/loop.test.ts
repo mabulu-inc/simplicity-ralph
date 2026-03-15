@@ -458,7 +458,16 @@ describe('run', () => {
     const { run } = await import('../commands/loop.js');
     await run(['-n', '1', '--no-push'], tmpDir);
 
-    expect(discardUnstaged).toHaveBeenCalledWith(tmpDir);
+    expect(discardUnstaged).toHaveBeenCalledWith(
+      tmpDir,
+      expect.arrayContaining([
+        'docs/tasks/',
+        'docs/PRD.md',
+        'docs/prompts/',
+        'docs/RALPH-METHODOLOGY.md',
+        'ralph.config.json',
+      ]),
+    );
   });
 
   it('creates log directory and log file with task ID', async () => {

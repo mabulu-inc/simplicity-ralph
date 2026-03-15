@@ -33,9 +33,18 @@ describe('LoopGitService', () => {
   });
 
   describe('discardUnstaged', () => {
-    it('delegates to core git discardUnstaged', async () => {
+    it('delegates to core git discardUnstaged with protected paths', async () => {
       await service.discardUnstaged();
-      expect(discardUnstaged).toHaveBeenCalledWith(projectDir);
+      expect(discardUnstaged).toHaveBeenCalledWith(
+        projectDir,
+        expect.arrayContaining([
+          'docs/tasks/',
+          'docs/PRD.md',
+          'docs/prompts/',
+          'docs/RALPH-METHODOLOGY.md',
+          'ralph.config.json',
+        ]),
+      );
     });
 
     it('returns error message on failure', async () => {
