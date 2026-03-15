@@ -76,7 +76,7 @@
 - [x] T-044: Add file naming prompt to ralph init — $0.32
 - [x] T-045: Make ralph init idempotent with smart defaults and diff-based overwrite — $0.93
 
-## 11 — Post-Iteration & Housekeeping ($4.16)
+## 11 — Post-Iteration & Housekeeping ($5.01)
 
 - [x] T-046: Wire post-iteration metadata updates into orchestrator — $0.65
 - [x] T-047: Add current phase timing and last log line to monitor — $0.73
@@ -84,7 +84,7 @@
 - [x] T-049: Improve monitor phase timeline with per-phase durations and live timer — $0.99
 - [x] T-052: Fix monitor last output disappearing during tool-heavy stretches — $0.72
 - [x] T-054: Freeze monitor timers when status is STOPPED — $0.46
-- [ ] T-055: Preserve planning artifacts during clean slate
+- [x] T-055: Preserve planning artifacts during clean slate — $0.85
 
 ## 3 — Hardening ($0.77)
 
@@ -95,4 +95,4 @@
 
 - [x] T-053: Add README and GitHub Pages documentation site — $1.46
 
-**Grand Total: $43.11**
+**Grand Total: $43.96**
