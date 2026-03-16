@@ -100,12 +100,12 @@
 
 - [x] T-053: Add README and GitHub Pages documentation site — $1.46
 
-## 13 — Loop Efficiency ($4.14)
+## 13 — Loop Efficiency ($6.81)
 
 - [x] T-061: Max retries per task with BLOCKED status — $2.00
 - [x] T-062: Preflight check to baseline pre-existing failures — $1.24
 - [x] T-063: Fail-fast prompt guidance for repeated blockers — $0.90
-- [ ] T-064: Per-task cost cap with configurable loop budget
+- [x] T-064: Per-task cost cap with configurable loop budget — $2.67
 - [ ] T-065: Show per-invocation progress alongside total progress in monitor
 
-**Grand Total: $51.31**
+**Grand Total: $53.98**
