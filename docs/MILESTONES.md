@@ -39,7 +39,7 @@
 - [x] T-014: CI workflow — $0.42
 - [x] T-015: Publish workflow — $0.21
 
-## 8 — Robustness ($9.63)
+## 8 — Robustness ($10.25)
 
 - [x] T-018: Structured Markdown parsing for task and config files — $0.82
 - [x] T-019: Externalize pricing and complexity tier configuration — $0.71
@@ -54,7 +54,7 @@
 - [x] T-028: Replace global process table scanning with PID-scoped process management — $1.19
 - [x] T-029: Add input sanitization for shell command arguments — $0.67
 - [x] T-056: Show defaults and options in init prompts — $0.53
-- [ ] T-057: Improve loop logging when agent session hits max turns
+- [x] T-057: Improve loop logging when agent session hits max turns — $0.62
 - [ ] T-058: Parse explicit Complexity field from task files
 - [ ] T-059: ralph update command to refresh methodology and prompts
 
@@ -99,4 +99,4 @@
 
 - [x] T-053: Add README and GitHub Pages documentation site — $1.46
 
-**Grand Total: $44.49**
+**Grand Total: $45.11**
