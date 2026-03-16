@@ -18,6 +18,7 @@ export interface LoopOptions {
   dryRun: boolean;
   push: boolean;
   agent: string;
+  allowDirty: boolean;
 }
 
 export interface PreflightResult {
@@ -53,6 +54,7 @@ export function parseLoopOptions(args: string[]): LoopOptions {
     dryRun: false,
     push: true,
     agent: 'claude',
+    allowDirty: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -87,6 +89,9 @@ export function parseLoopOptions(args: string[]): LoopOptions {
       case '-a':
       case '--agent':
         opts.agent = args[++i];
+        break;
+      case '--allow-dirty':
+        opts.allowDirty = true;
         break;
     }
   }

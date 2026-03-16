@@ -25,8 +25,15 @@ vi.mock('../core/git.js', () => ({
   resolveGitTarget: vi.fn(),
 }));
 
+vi.mock('../core/preflight.js', () => ({
+  runPreflightCheck: vi.fn(),
+  formatPreflightBaseline: vi.fn(),
+  buildPreflightLogEntry: vi.fn(),
+}));
+
 import * as processModule from '../core/process.js';
 import * as gitModule from '../core/git.js';
+import * as preflightModule from '../core/preflight.js';
 import { parseLoopOptions, preflightChecks, scaleForComplexity } from '../commands/loop.js';
 import type { Task } from '../core/tasks.js';
 
@@ -34,6 +41,9 @@ const spawnWithCapture = vi.mocked(processModule.spawnWithCapture);
 const monitorProcess = vi.mocked(processModule.monitorProcess);
 const getHeadSha = vi.mocked(gitModule.getHeadSha);
 const discardUnstaged = vi.mocked(gitModule.discardUnstaged);
+const runPreflightCheck = vi.mocked(preflightModule.runPreflightCheck);
+const formatPreflightBaseline = vi.mocked(preflightModule.formatPreflightBaseline);
+const buildPreflightLogEntry = vi.mocked(preflightModule.buildPreflightLogEntry);
 const hasUnpushedCommits = vi.mocked(gitModule.hasUnpushedCommits);
 const pushToRemote = vi.mocked(gitModule.pushToRemote);
 const resolveGitTarget = vi.mocked(gitModule.resolveGitTarget);
@@ -53,6 +63,7 @@ describe('parseLoopOptions', () => {
       dryRun: false,
       push: true,
       agent: 'claude',
+      allowDirty: false,
     });
   });
 
@@ -110,12 +121,21 @@ describe('parseLoopOptions', () => {
       dryRun: true,
       push: false,
       agent: 'claude',
+      allowDirty: false,
     });
   });
 
   it('parses -a / --agent', () => {
     expect(parseLoopOptions(['-a', 'gemini']).agent).toBe('gemini');
     expect(parseLoopOptions(['--agent', 'codex']).agent).toBe('codex');
+  });
+
+  it('parses --allow-dirty', () => {
+    expect(parseLoopOptions(['--allow-dirty']).allowDirty).toBe(true);
+  });
+
+  it('defaults allowDirty to false', () => {
+    expect(parseLoopOptions([]).allowDirty).toBe(false);
   });
 });
 
@@ -276,6 +296,9 @@ describe('run', () => {
     hasUnpushedCommits.mockResolvedValue(false);
     pushToRemote.mockResolvedValue(undefined);
     resolveGitTarget.mockResolvedValue({ remote: 'origin', branch: 'main' });
+    runPreflightCheck.mockResolvedValue({ passed: true, output: '', timedOut: false });
+    formatPreflightBaseline.mockReturnValue('');
+    buildPreflightLogEntry.mockReturnValue('{"type":"preflight"}');
   });
 
   afterEach(async () => {

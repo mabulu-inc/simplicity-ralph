@@ -58,9 +58,13 @@ export class LoopOrchestrator {
         console.log('Preflight: timed out — proceeding without baseline');
       } else if (preflightResult.passed) {
         console.log('Preflight: passed clean');
-      } else {
+      } else if (this.opts.allowDirty) {
         console.log('Preflight: pre-existing failures detected');
         preflightBaseline = formatPreflightBaseline(preflightResult);
+      } else {
+        console.error(`Preflight: quality check failed — aborting loop\n${preflightResult.output}`);
+        process.exitCode = 1;
+        return;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

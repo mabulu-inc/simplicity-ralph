@@ -141,6 +141,7 @@ describe('LoopOrchestrator', () => {
       push: false,
       db: true,
       agent: 'claude',
+      allowDirty: false,
       ...overrides,
     };
   }
@@ -902,7 +903,49 @@ describe('LoopOrchestrator', () => {
     expect(logContent).toContain('preflight');
   });
 
-  it('injects preflight baseline into prompt when preflight fails', async () => {
+  it('aborts with error when preflight fails and allowDirty is false', async () => {
+    resetRegistry();
+    resetProviderInit();
+    await setupProject();
+    mockChildProcess();
+    monitorProcess.mockResolvedValue({ exitCode: 0, timedOut: false });
+
+    runPreflightCheck.mockResolvedValue({
+      passed: false,
+      output: 'Error: lint failed\nsome details',
+      timedOut: false,
+    });
+
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts({ allowDirty: false }));
+    await orchestrator.execute();
+
+    const errOutput = errorSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(errOutput).toContain('Preflight');
+    expect(errOutput).toContain('lint failed');
+    // Should NOT spawn the agent
+    expect(spawnWithCapture).not.toHaveBeenCalled();
+  });
+
+  it('sets process.exitCode to 1 when preflight fails and allowDirty is false', async () => {
+    resetRegistry();
+    resetProviderInit();
+    await setupProject();
+
+    runPreflightCheck.mockResolvedValue({
+      passed: false,
+      output: 'Error: lint failed',
+      timedOut: false,
+    });
+
+    const originalExitCode = process.exitCode;
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts({ allowDirty: false }));
+    await orchestrator.execute();
+
+    expect(process.exitCode).toBe(1);
+    process.exitCode = originalExitCode;
+  });
+
+  it('injects preflight baseline into prompt when preflight fails and allowDirty is true', async () => {
     resetRegistry();
     resetProviderInit();
     await setupProject();
@@ -922,7 +965,7 @@ describe('LoopOrchestrator', () => {
       '# Pre-existing failures\nDo not fix these.\n```\nError: lint failed\n```',
     );
 
-    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts());
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts({ allowDirty: true }));
     await orchestrator.execute();
 
     const calledArgs = spawnWithCapture.mock.calls[0][1] as string[];
