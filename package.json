@@ -1,6 +1,6 @@
 {
   "name": "@mabulu-inc/ralph",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Stateless, PRD-driven AI development loop — automated TDD with Claude Code, Gemini CLI, Codex, Continue, and Cursor",
   "type": "module",
   "main": "./dist/ralph/cli.js",
