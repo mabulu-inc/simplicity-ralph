@@ -8,6 +8,11 @@ export default defineConfig({
     starlight({
       title: 'Ralph',
       tagline: 'Stateless, PRD-driven AI development',
+      favicon: '/favicon.svg',
+      logo: {
+        src: './public/favicon.svg',
+        alt: 'Ralph logo',
+      },
       social: [
         {
           icon: 'github',
