@@ -1,6 +1,6 @@
 {
   "name": "@mabulu-inc/ralph",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Stateless, PRD-driven AI development loop powered by Claude Code",
   "type": "module",
   "main": "./dist/ralph/cli.js",
