@@ -1,0 +1,32 @@
+---
+title: Ralph
+description: Stateless, PRD-driven AI development — automated TDD with any AI coding agent.
+template: splash
+hero:
+  tagline: Your AI coding agent builds your project one task at a time using red/green TDD, automatically.
+  actions:
+    - text: Get Started
+      link: /ralph/getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/mabulu-inc/ralph
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="Automated TDD" icon="pencil">
+    Every task goes through red/green/verify before committing. Quality gates enforced on every iteration.
+  </Card>
+  <Card title="Task-Driven" icon="list-format">
+    Decompose your PRD into task files. Ralph picks the next eligible task and drives it to completion.
+  </Card>
+  <Card title="Multi-Agent" icon="random">
+    Works with Claude Code, Gemini CLI, Codex CLI, Continue, and Cursor. Swap agents with a config change.
+  </Card>
+  <Card title="Stateless" icon="rocket">
+    Each iteration boots from disk. No persistent state to corrupt, no context window to overflow.
+  </Card>
+</CardGrid>
