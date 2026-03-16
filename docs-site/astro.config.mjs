@@ -43,6 +43,7 @@ export default defineConfig({
             { label: 'milestones', slug: 'commands/milestones' },
             { label: 'shas', slug: 'commands/shas' },
             { label: 'cost', slug: 'commands/cost' },
+            { label: 'update', slug: 'commands/update' },
           ],
         },
         {
