@@ -7,6 +7,7 @@ const COMMANDS = [
   'shas',
   'cost',
   'update',
+  'retry',
 ] as const;
 type Command = (typeof COMMANDS)[number];
 
@@ -51,6 +52,7 @@ export function formatHelp(unknown?: string): string {
   lines.push('  shas        Backfill commit SHAs in task files');
   lines.push('  cost        Calculate token usage and costs');
   lines.push('  update      Refresh methodology and prompt templates');
+  lines.push('  retry       Retry BLOCKED tasks from scratch');
 
   return lines.join('\n');
 }
@@ -87,6 +89,10 @@ const COMMAND_HELP: Record<Command, { description: string; usage: string }> = {
   update: {
     description: 'Refresh methodology and prompt templates',
     usage: 'ralph update',
+  },
+  retry: {
+    description: 'Retry BLOCKED tasks from scratch',
+    usage: 'ralph retry <task-id> [task-id ...]',
   },
 };
 
