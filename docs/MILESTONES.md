@@ -39,7 +39,7 @@
 - [x] T-014: CI workflow — $0.42
 - [x] T-015: Publish workflow — $0.21
 
-## 8 — Robustness ($12.31)
+## 8 — Robustness ($12.67)
 
 - [x] T-018: Structured Markdown parsing for task and config files — $0.82
 - [x] T-019: Externalize pricing and complexity tier configuration — $0.71
@@ -58,6 +58,8 @@
 - [x] T-058: Parse explicit Complexity field from task files — $0.96
 - [x] T-059: ralph update command to refresh methodology and prompts — $0.76
 - [x] T-060: Monitor picks wrong log file when task IDs are non-sequential — $0.34
+- [x] T-067: Show help and skip execution when --help flag is passed to any CLI command — $0.36
+- [ ] T-068: ralph retry command to re-run tasks from scratch
 
 ## 9 — Agent Abstraction ($6.23)
 
@@ -109,4 +111,4 @@
 - [x] T-065: Show per-invocation progress alongside total progress in monitor — $0.81
 - [x] T-066: Fail-fast on quality-check preflight by default — $0.93
 
-**Grand Total: $55.72**
+**Grand Total: $56.08**
