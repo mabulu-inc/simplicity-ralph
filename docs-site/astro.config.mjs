@@ -3,7 +3,7 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://mabulu-inc.github.io',
-  base: '/ralph',
+  base: '/simplicity-ralph',
   integrations: [
     starlight({
       title: 'Ralph',

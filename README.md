@@ -140,4 +140,4 @@ This shows a live dashboard with the current task, phase progress, and recent ag
 
 ## Documentation
 
-Full documentation: [https://mabulu-inc.github.io/ralph/](https://mabulu-inc.github.io/ralph/)
+Full documentation: [https://mabulu-inc.github.io/simplicity-ralph/](https://mabulu-inc.github.io/simplicity-ralph/)
