@@ -118,4 +118,8 @@
 
 - [x] T-071: Rename package from @smplcty/ralph to @smplcty/ralph — $1.28
 
-**Grand Total: $59.17**
+## 13 — Prompt Fidelity ($0.59)
+
+- [x] T-073: Extract full task body for boot prompt — $0.59
+
+**Grand Total: $59.76**
