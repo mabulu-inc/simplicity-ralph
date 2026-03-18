@@ -176,6 +176,31 @@ describe('LoopOrchestrator', () => {
 
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('No eligible task');
+    expect(output).toContain('re-run with -v for details');
+  });
+
+  it('prints per-task diagnostic in verbose mode when no eligible task found', async () => {
+    await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await mkdir(join(tmpDir, '.claude'), { recursive: true });
+    await writeFile(join(tmpDir, '.claude', 'CLAUDE.md'), CLAUDE_MD);
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'boot.md'),
+      'Task {{task.id}}: {{task.title}}\n{{retryContext}}',
+    );
+    await writeFile(
+      join(tmpDir, 'docs', 'tasks', 'T-002.md'),
+      `# T-002: Blocked task\n\n- **Status**: TODO\n- **Milestone**: 1 — Setup\n- **Depends**: T-001\n- **PRD Reference**: §1\n\n## Description\n\nA blocked task.\n`,
+    );
+
+    const orchestrator = new LoopOrchestrator(tmpDir, defaultOpts({ verbose: true }));
+    await orchestrator.execute();
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('1 TODO tasks remain');
+    expect(output).toContain('T-002');
+    expect(output).toContain('T-001');
+    expect(output).toContain('unknown task');
   });
 
   it('spawns claude with auto-scaled max-turns and timeout', async () => {

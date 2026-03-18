@@ -5,6 +5,7 @@ import {
   findNextTask,
   countByStatus,
   allDone,
+  diagnoseIneligible,
   type Task,
 } from '../core/tasks.js';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -700,5 +701,127 @@ describe('allDone', () => {
 
   it('returns true for empty array', () => {
     expect(allDone([])).toBe(true);
+  });
+});
+
+describe('parseDeps — robust "none" variants', () => {
+  it('treats "(none)" as no dependencies', () => {
+    const task = parseTaskFile(
+      'T-090.md',
+      TODO_NO_DEPS.replace('T-005', 'T-090').replace('Depends**: none', 'Depends**: (none)'),
+    );
+    expect(task.depends).toEqual([]);
+  });
+
+  it('treats em-dash "—" as no dependencies', () => {
+    const task = parseTaskFile(
+      'T-091.md',
+      TODO_NO_DEPS.replace('T-005', 'T-091').replace('Depends**: none', 'Depends**: —'),
+    );
+    expect(task.depends).toEqual([]);
+  });
+
+  it('treats en-dash "–" as no dependencies', () => {
+    const task = parseTaskFile(
+      'T-092.md',
+      TODO_NO_DEPS.replace('T-005', 'T-092').replace('Depends**: none', 'Depends**: –'),
+    );
+    expect(task.depends).toEqual([]);
+  });
+
+  it('treats single hyphen "-" as no dependencies', () => {
+    const task = parseTaskFile(
+      'T-093.md',
+      TODO_NO_DEPS.replace('T-005', 'T-093').replace('Depends**: none', 'Depends**: -'),
+    );
+    expect(task.depends).toEqual([]);
+  });
+
+  it('treats empty string as no dependencies', () => {
+    const task = parseTaskFile(
+      'T-094.md',
+      TODO_NO_DEPS.replace('T-005', 'T-094').replace('Depends**: none', 'Depends**:'),
+    );
+    expect(task.depends).toEqual([]);
+  });
+
+  it('treats whitespace-only as no dependencies', () => {
+    const task = parseTaskFile(
+      'T-095.md',
+      TODO_NO_DEPS.replace('T-005', 'T-095').replace('Depends**: none', 'Depends**:   '),
+    );
+    expect(task.depends).toEqual([]);
+  });
+});
+
+describe('diagnoseIneligible', () => {
+  it('returns empty array when there are no TODO tasks', () => {
+    const tasks: Task[] = [parseTaskFile('T-000.md', DONE_TASK)];
+    expect(diagnoseIneligible(tasks)).toEqual([]);
+  });
+
+  it('identifies tasks blocked by section', () => {
+    const tasks: Task[] = [
+      parseTaskFile('T-000.md', DONE_TASK),
+      parseTaskFile('T-003.md', BLOCKED_TASK),
+    ];
+    const diag = diagnoseIneligible(tasks);
+    expect(diag).toHaveLength(1);
+    expect(diag[0].taskId).toBe('T-003');
+    expect(diag[0].blocked).toBe(true);
+  });
+
+  it('identifies unmet dependencies with their status', () => {
+    const tasks: Task[] = [
+      parseTaskFile('T-001.md', TODO_TASK), // depends on T-000 (not present => phantom)
+      parseTaskFile('T-004.md', MULTI_DEPS_TASK), // depends on T-001, T-002
+    ];
+    const diag = diagnoseIneligible(tasks);
+    const t001Diag = diag.find((d) => d.taskId === 'T-001');
+    expect(t001Diag).toBeDefined();
+    expect(t001Diag!.unmetDeps).toHaveLength(1);
+    expect(t001Diag!.unmetDeps[0].depId).toBe('T-000');
+    expect(t001Diag!.unmetDeps[0].status).toBe('unknown');
+
+    const t004Diag = diag.find((d) => d.taskId === 'T-004');
+    expect(t004Diag).toBeDefined();
+    expect(t004Diag!.unmetDeps).toHaveLength(2);
+    expect(t004Diag!.unmetDeps[0].depId).toBe('T-001');
+    expect(t004Diag!.unmetDeps[0].status).toBe('TODO');
+    expect(t004Diag!.unmetDeps[1].depId).toBe('T-002');
+    expect(t004Diag!.unmetDeps[1].status).toBe('unknown');
+  });
+
+  it('flags phantom dependencies (task IDs that do not exist)', () => {
+    const taskWithPhantom = `# T-087: Phantom dep task
+
+- **Status**: TODO
+- **Milestone**: 2 — Core
+- **Depends**: (none)
+- **PRD Reference**: §3
+
+## Description
+
+A task whose dep field was mistyped.
+
+## Produces
+
+- \`src/phantom.ts\`
+`;
+    // Since (none) is now treated as no deps, this should be eligible — not in diagnostics
+    const tasks: Task[] = [parseTaskFile('T-087.md', taskWithPhantom)];
+    const diag = diagnoseIneligible(tasks);
+    expect(diag).toEqual([]);
+  });
+
+  it('returns formatted diagnostic lines', () => {
+    const tasks: Task[] = [
+      parseTaskFile('T-001.md', TODO_TASK), // depends on T-000 (phantom)
+    ];
+    const diag = diagnoseIneligible(tasks);
+    expect(diag).toHaveLength(1);
+    expect(diag[0].taskId).toBe('T-001');
+    expect(diag[0].unmetDeps[0].depId).toBe('T-000');
+    expect(diag[0].unmetDeps[0].status).toBe('unknown');
   });
 });

@@ -1,6 +1,12 @@
 import { appendFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { scanTasks, findNextTask, allDone, countByStatus } from '../../core/tasks.js';
+import {
+  scanTasks,
+  findNextTask,
+  allDone,
+  countByStatus,
+  diagnoseIneligible,
+} from '../../core/tasks.js';
 import { readConfig } from '../../core/config.js';
 import { getProvider, type AgentProvider } from '../../core/agent-provider.js';
 import { ensureProvidersRegistered } from '../../providers/index.js';
@@ -113,9 +119,27 @@ export class LoopOrchestrator {
 
       const nextTask = findNextTask(tasks);
       if (!nextTask) {
-        console.log(
-          'No eligible task found (remaining tasks may be blocked or have unmet dependencies)',
-        );
+        const diagnostics = diagnoseIneligible(tasks);
+        if (this.opts.verbose && diagnostics.length > 0) {
+          console.log(`No eligible task found. ${diagnostics.length} TODO tasks remain:`);
+          for (const d of diagnostics) {
+            const reasons: string[] = [];
+            if (d.blocked) reasons.push('blocked');
+            if (d.unmetDeps.length > 0) {
+              const depDescs = d.unmetDeps.map((dep) =>
+                dep.status === 'unknown'
+                  ? `${dep.depId} [unknown task — possible typo in Depends field]`
+                  : `${dep.depId} [${dep.status}]`,
+              );
+              reasons.push(`blocked by unmet deps: ${depDescs.join(', ')}`);
+            }
+            console.log(`  ${d.taskId}: ${reasons.join('; ')}`);
+          }
+        } else {
+          console.log(
+            'No eligible task found (remaining tasks may be blocked or have unmet dependencies) (re-run with -v for details)',
+          );
+        }
         return;
       }
 

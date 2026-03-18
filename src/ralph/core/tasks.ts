@@ -46,9 +46,13 @@ function parseComplexity(raw: string | undefined): ComplexityTier | undefined {
   return VALID_COMPLEXITY_TIERS.has(normalized) ? (normalized as ComplexityTier) : undefined;
 }
 
+const NO_DEPS_VARIANTS = new Set(['none', '(none)', '—', '–', '-']);
+
 function parseDeps(raw: string | undefined): string[] {
-  if (!raw || raw.toLowerCase() === 'none') return [];
-  return raw.split(',').map((d) => d.trim());
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (trimmed === '' || NO_DEPS_VARIANTS.has(trimmed.toLowerCase())) return [];
+  return trimmed.split(',').map((d) => d.trim());
 }
 
 export function parseTaskFile(filename: string, content: string): Task {
@@ -119,6 +123,37 @@ export function findNextTask(tasks: Task[]): Task | undefined {
   return tasks.find(
     (t) => t.status === 'TODO' && !t.blocked && t.depends.every((dep) => doneIds.has(dep)),
   );
+}
+
+export interface UnmetDep {
+  depId: string;
+  status: 'TODO' | 'DONE' | 'BLOCKED' | 'unknown';
+}
+
+export interface TaskDiagnostic {
+  taskId: string;
+  blocked: boolean;
+  unmetDeps: UnmetDep[];
+}
+
+export function diagnoseIneligible(tasks: Task[]): TaskDiagnostic[] {
+  const doneIds = new Set(tasks.filter((t) => t.status === 'DONE').map((t) => t.id));
+  const taskMap = new Map(tasks.map((t) => [t.id, t]));
+
+  const todoTasks = tasks.filter(
+    (t) => t.status === 'TODO' && (t.blocked || !t.depends.every((dep) => doneIds.has(dep))),
+  );
+
+  return todoTasks.map((t) => {
+    const unmetDeps: UnmetDep[] = t.depends
+      .filter((dep) => !doneIds.has(dep))
+      .map((depId) => {
+        const depTask = taskMap.get(depId);
+        return { depId, status: depTask ? depTask.status : 'unknown' };
+      });
+
+    return { taskId: t.id, blocked: t.blocked, unmetDeps };
+  });
 }
 
 export function countByStatus(tasks: Task[]): { TODO: number; DONE: number; BLOCKED: number } {
