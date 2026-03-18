@@ -41,7 +41,7 @@ Set the agent in `ralph.config.json`:
 Or override per-run:
 
 ```bash
-pnpm dlx @mabulu-inc/ralph loop --agent gemini
+pnpm dlx @smplcty/ralph loop --agent gemini
 ```
 
 During `ralph init`, the agent is auto-detected based on which CLIs are installed (preference: claude → gemini → codex → continue → cursor).

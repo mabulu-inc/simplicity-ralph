@@ -116,6 +116,6 @@
 
 ## 15 — Rebranding
 
-- [ ] T-071: Rename package from @mabulu-inc/ralph to @smplcty/ralph
+- [ ] T-071: Rename package to @smplcty/ralph
 
 **Grand Total: $57.64**

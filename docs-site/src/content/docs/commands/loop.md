@@ -4,9 +4,9 @@ description: The main AI development loop that picks tasks and drives your agent
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph loop
+pnpm dlx @smplcty/ralph loop
 # or
-npx @mabulu-inc/ralph loop
+npx @smplcty/ralph loop
 ```
 
 The main AI development loop. Runs the configured AI coding agent in stateless iterations, each picking up the next eligible task.

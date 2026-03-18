@@ -20,12 +20,12 @@ describe('Publish workflow', () => {
     expect(workflow.name).toBe('Publish');
   });
 
-  it('triggers on push of version tags', () => {
+  it('triggers on release published', () => {
     const workflow = loadWorkflow();
     const on = workflow.on as Record<string, unknown>;
-    const push = on.push as Record<string, unknown>;
-    const tags = push.tags as string[];
-    expect(tags).toContain('v*');
+    const release = on.release as Record<string, unknown>;
+    const types = release.types as string[];
+    expect(types).toContain('published');
   });
 
   it('has a publish job', () => {
@@ -77,7 +77,7 @@ describe('Publish workflow', () => {
     expect(setupNode).toBeDefined();
     const nodeWith = setupNode!.with as Record<string, unknown>;
     expect(String(nodeWith['node-version'])).toBe('20');
-    expect(nodeWith['registry-url']).toBe('https://npm.pkg.github.com');
+    expect(nodeWith['registry-url']).toBe('https://registry.npmjs.org');
   });
 
   it('runs pnpm install with frozen lockfile', () => {
@@ -103,36 +103,36 @@ describe('Publish workflow', () => {
     expect(checkStep).toBeDefined();
   });
 
-  it('runs pnpm publish with correct flags', () => {
+  it('publishes with npm using provenance and public access', () => {
     const workflow = loadWorkflow();
     const jobs = workflow.jobs as Record<string, unknown>;
     const publish = jobs.publish as Record<string, unknown>;
     const steps = publish.steps as Record<string, unknown>[];
 
     const publishStep = steps.find(
-      (s) => typeof s.run === 'string' && s.run.includes('pnpm publish'),
+      (s) => typeof s.run === 'string' && s.run.includes('npm publish'),
     );
     expect(publishStep).toBeDefined();
     const run = publishStep!.run as string;
+    expect(run).toContain('--provenance');
     expect(run).toContain('--access public');
-    expect(run).toContain('--no-git-checks');
   });
 
-  it('uses NPM_TOKEN for authentication', () => {
+  it('uses OIDC for authentication (no token needed)', () => {
     const workflow = loadWorkflow();
     const jobs = workflow.jobs as Record<string, unknown>;
     const publish = jobs.publish as Record<string, unknown>;
-    const steps = publish.steps as Record<string, unknown>[];
 
-    const publishStep = steps.find(
-      (s) => typeof s.run === 'string' && s.run.includes('pnpm publish'),
-    );
-    expect(publishStep).toBeDefined();
-    const env = publishStep!.env as Record<string, unknown>;
-    expect(env.NODE_AUTH_TOKEN).toBe('${{ secrets.GITHUB_TOKEN }}');
+    // Should have id-token: write permission at top level
+    const permissions = workflow.permissions as Record<string, unknown>;
+    expect(permissions['id-token']).toBe('write');
+    expect(permissions.contents).toBe('read');
+
+    // Should have environment: npm
+    expect(publish.environment).toBe('npm');
   });
 
-  it('runs pnpm check before pnpm publish', () => {
+  it('runs pnpm check before npm publish', () => {
     const workflow = loadWorkflow();
     const jobs = workflow.jobs as Record<string, unknown>;
     const publish = jobs.publish as Record<string, unknown>;
@@ -142,7 +142,7 @@ describe('Publish workflow', () => {
       (s) => typeof s.run === 'string' && s.run.includes('pnpm check'),
     );
     const publishIndex = steps.findIndex(
-      (s) => typeof s.run === 'string' && s.run.includes('pnpm publish'),
+      (s) => typeof s.run === 'string' && s.run.includes('npm publish'),
     );
     expect(checkIndex).toBeGreaterThan(-1);
     expect(publishIndex).toBeGreaterThan(checkIndex);

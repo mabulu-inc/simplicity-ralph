@@ -126,7 +126,7 @@ async function updatePackageJson(rootDir: string, answers: InitAnswers): Promise
   const raw = await fs.readFile(pkgPath, 'utf-8');
   const pkg = JSON.parse(raw);
   pkg.scripts = pkg.scripts || {};
-  pkg.scripts.ralph = 'npx @mabulu-inc/ralph loop';
+  pkg.scripts.ralph = 'npx @smplcty/ralph loop';
   await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 

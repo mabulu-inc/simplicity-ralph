@@ -4,9 +4,9 @@ description: Force-stop ralph and all child processes.
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph kill
+pnpm dlx @smplcty/ralph kill
 # or
-npx @mabulu-inc/ralph kill
+npx @smplcty/ralph kill
 ```
 
 Force-stop ralph and all child processes (agent sessions, watchers, etc.).

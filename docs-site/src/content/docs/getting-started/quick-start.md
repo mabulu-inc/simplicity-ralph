@@ -7,23 +7,13 @@ description: Go from zero to your first completed task in under 60 seconds.
 
 - Node.js 20+
 - An AI coding agent CLI installed (e.g., [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview))
-- A GitHub personal access token with `read:packages` scope
 
-## 1. Configure Registry
-
-`@mabulu-inc/ralph` is published to GitHub Packages. Add to your `.npmrc`:
-
-```
-@mabulu-inc:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-## 2. Initialize Your Project
+## 1. Initialize Your Project
 
 ```bash
-pnpm dlx @mabulu-inc/ralph init
+pnpm dlx @smplcty/ralph init
 # or
-npx @mabulu-inc/ralph init
+npx @smplcty/ralph init
 ```
 
 Ralph will prompt you for:
@@ -43,7 +33,7 @@ This scaffolds:
 - `ralph.config.json` — project configuration
 - Agent instructions file (e.g., `.claude/CLAUDE.md`)
 
-## 3. Write Your PRD
+## 2. Write Your PRD
 
 Edit `docs/PRD.md` with numbered sections describing what to build:
 
@@ -57,7 +47,7 @@ The system must support email/password authentication with JWT tokens.
 Users can register with email and password. Passwords must be hashed with bcrypt.
 ```
 
-## 4. Create Tasks
+## 3. Create Tasks
 
 Create task files in `docs/tasks/` that reference PRD sections:
 
@@ -80,12 +70,12 @@ validates input, hashes the password, and stores the user.
 - Tests
 ```
 
-## 5. Run the Loop
+## 4. Run the Loop
 
 ```bash
-pnpm dlx @mabulu-inc/ralph loop
+pnpm dlx @smplcty/ralph loop
 # or
-npx @mabulu-inc/ralph loop
+npx @smplcty/ralph loop
 ```
 
 Ralph will:
@@ -96,14 +86,14 @@ Ralph will:
 5. Quality gates run (lint, format, typecheck, build, test)
 6. The agent commits and ralph moves to the next task
 
-## 6. Monitor Progress
+## 5. Monitor Progress
 
 In another terminal:
 
 ```bash
-pnpm dlx @mabulu-inc/ralph monitor -w
+pnpm dlx @smplcty/ralph monitor -w
 # or
-npx @mabulu-inc/ralph monitor -w
+npx @smplcty/ralph monitor -w
 ```
 
 This shows a live dashboard with task progress, current phase, and agent activity.

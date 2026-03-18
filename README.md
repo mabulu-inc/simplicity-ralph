@@ -1,4 +1,4 @@
-# @mabulu-inc/ralph
+# @smplcty/ralph
 
 Stateless, PRD-driven AI development loop — your AI coding agent builds your project one task at a time using red/green TDD, automatically.
 
@@ -10,29 +10,18 @@ Stateless, PRD-driven AI development loop — your AI coding agent builds your p
 - **Cost tracking** — token usage and cost breakdowns per task and milestone
 - **Stateless** — each iteration boots from disk, no persistent agent state to corrupt
 
-## Registry Setup
-
-`@mabulu-inc/ralph` is published to GitHub Packages. Configure your `.npmrc`:
-
-```
-@mabulu-inc:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-> Requires a GitHub personal access token with `read:packages` scope.
-
 ## Quick Start
 
 ```bash
 # Initialize a new project
-pnpm dlx @mabulu-inc/ralph init
+pnpm dlx @smplcty/ralph init
 # or
-npx @mabulu-inc/ralph init
+npx @smplcty/ralph init
 
 # Run the development loop
-pnpm dlx @mabulu-inc/ralph loop
+pnpm dlx @smplcty/ralph loop
 # or
-npx @mabulu-inc/ralph loop
+npx @smplcty/ralph loop
 ```
 
 ## Commands

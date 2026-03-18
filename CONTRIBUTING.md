@@ -11,10 +11,10 @@ Ralph evolves itself. Contributions are made by writing task files and running t
 ## Getting Started
 
 ```bash
-git clone https://github.com/mabulu-inc/ralph.git
-cd ralph
+git clone https://github.com/mabulu-inc/simplicity-ralph.git
+cd simplicity-ralph
 pnpm install
-pnpm dlx @mabulu-inc/ralph loop
+pnpm dlx @smplcty/ralph loop
 ```
 
 ## Quality Gates

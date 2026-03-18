@@ -3,7 +3,7 @@ import { parseConfig, readConfig } from '../core/config.js';
 
 // --- Fixtures ---
 
-const FULL_CONFIG = `# @mabulu-inc/ralph — Claude Code Instructions
+const FULL_CONFIG = `# @smplcty/ralph — Claude Code Instructions
 
 ## Project Goal
 

@@ -4,9 +4,9 @@ description: Calculate token usage and costs from JSONL log files.
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph cost <logfile>
+pnpm dlx @smplcty/ralph cost <logfile>
 # or
-npx @mabulu-inc/ralph cost --all
+npx @smplcty/ralph cost --all
 ```
 
 Calculate and display token usage and estimated cost from ralph log files stored in `.ralph-logs/`.

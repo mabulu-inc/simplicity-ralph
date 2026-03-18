@@ -17,7 +17,7 @@ export default defineConfig({
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/mabulu-inc/ralph',
+          href: 'https://github.com/mabulu-inc/simplicity-ralph',
         },
       ],
       sidebar: [

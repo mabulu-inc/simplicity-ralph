@@ -4,9 +4,9 @@ description: Generate milestone summaries with cost breakdowns.
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph milestones
+pnpm dlx @smplcty/ralph milestones
 # or
-npx @mabulu-inc/ralph milestones
+npx @smplcty/ralph milestones
 ```
 
 Generates `docs/MILESTONES.md` — a quick-scan index of tasks grouped by milestone.

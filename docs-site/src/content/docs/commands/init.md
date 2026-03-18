@@ -4,9 +4,9 @@ description: Interactive project bootstrapper that scaffolds ralph files.
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph init
+pnpm dlx @smplcty/ralph init
 # or
-npx @mabulu-inc/ralph init
+npx @smplcty/ralph init
 ```
 
 Interactive project bootstrapper. Prompts for project configuration, then creates the Ralph Methodology scaffolding.

@@ -4,9 +4,9 @@ description: Reset blocked tasks so they can be retried from scratch.
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph retry T-005
+pnpm dlx @smplcty/ralph retry T-005
 # or
-npx @mabulu-inc/ralph retry T-005
+npx @smplcty/ralph retry T-005
 ```
 
 Reset one or more BLOCKED tasks so they can be retried from scratch. Logs are preserved but moved out of the retry-count path.

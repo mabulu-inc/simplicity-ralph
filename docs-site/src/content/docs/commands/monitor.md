@@ -4,9 +4,9 @@ description: Real-time progress dashboard with phase tracking and activity indic
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph monitor -w
+pnpm dlx @smplcty/ralph monitor -w
 # or
-npx @mabulu-inc/ralph monitor -w
+npx @smplcty/ralph monitor -w
 ```
 
 Real-time status display showing progress and current activity.

@@ -4,9 +4,9 @@ description: Refresh methodology and prompt templates after upgrading ralph.
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph update
+pnpm dlx @smplcty/ralph update
 # or
-npx @mabulu-inc/ralph update
+npx @smplcty/ralph update
 ```
 
 Refresh ralph-owned files after upgrading the package. Regenerates methodology docs and prompt templates without touching user-authored content.

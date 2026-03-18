@@ -4,9 +4,9 @@ description: Backfill commit SHAs into task metadata.
 ---
 
 ```bash
-pnpm dlx @mabulu-inc/ralph shas
+pnpm dlx @smplcty/ralph shas
 # or
-npx @mabulu-inc/ralph shas
+npx @smplcty/ralph shas
 ```
 
 Backfill or correct commit SHAs in task files.

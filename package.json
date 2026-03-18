@@ -1,5 +1,5 @@
 {
-  "name": "@mabulu-inc/ralph",
+  "name": "@smplcty/ralph",
   "version": "0.6.0",
   "description": "Stateless, PRD-driven AI development loop — automated TDD with Claude Code, Gemini CLI, Codex, Continue, and Cursor",
   "type": "module",
