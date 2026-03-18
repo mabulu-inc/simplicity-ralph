@@ -100,10 +100,10 @@
 - [x] T-050: Remove --no-db flag dead code — $0.31
 - [x] T-051: Inject timestamps into JSONL log lines — $0.46
 
-## 12 — Documentation ($1.46)
+## 12 — Documentation ($1.71)
 
 - [x] T-053: Add README and GitHub Pages documentation site — $1.46
-- [ ] T-072: Rewrite README for developer onboarding
+- [x] T-072: Rewrite README for developer onboarding — $0.25
 
 ## 13 — Loop Efficiency ($8.55)
 
@@ -118,4 +118,4 @@
 
 - [x] T-071: Rename package from @smplcty/ralph to @smplcty/ralph — $1.28
 
-**Grand Total: $58.92**
+**Grand Total: $59.17**
