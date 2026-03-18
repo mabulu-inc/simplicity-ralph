@@ -57,7 +57,7 @@ describe('CI workflow', () => {
     );
     expect(setupNode).toBeDefined();
     const nodeWith = setupNode!.with as Record<string, unknown>;
-    expect(String(nodeWith['node-version'])).toBe('20');
+    expect(String(nodeWith['node-version'])).toBe('24');
   });
 
   it('installs pnpm', () => {
