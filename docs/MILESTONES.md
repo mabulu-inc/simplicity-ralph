@@ -39,7 +39,7 @@
 - [x] T-014: CI workflow — $0.42
 - [x] T-015: Publish workflow — $0.21
 
-## 8 — Robustness ($13.82)
+## 8 — Robustness ($14.23)
 
 - [x] T-018: Structured Markdown parsing for task and config files — $0.82
 - [x] T-019: Externalize pricing and complexity tier configuration — $0.71
@@ -61,7 +61,7 @@
 - [x] T-067: Show help and skip execution when --help flag is passed to any CLI command — $0.36
 - [x] T-068: ralph retry command to re-run tasks from scratch — $0.55
 - [x] T-069: Smarter dependency parsing and diagnostic "no eligible task" messages — $0.60
-- [ ] T-070: Improve monitor labels and add progress bar to "This run"
+- [x] T-070: Improve monitor labels and add progress bar to "This run" — $0.41
 
 ## 9 — Agent Abstraction ($6.23)
 
@@ -118,4 +118,4 @@
 
 - [ ] T-071: Rename package from @mabulu-inc/ralph to @smplcty/ralph
 
-**Grand Total: $57.23**
+**Grand Total: $57.64**
