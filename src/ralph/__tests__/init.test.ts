@@ -44,12 +44,10 @@ describe('runInit', () => {
     expect(content).toContain('# test-app');
   });
 
-  it('creates docs/RALPH-METHODOLOGY.md', async () => {
+  it('does NOT create docs/RALPH-METHODOLOGY.md', async () => {
     await runInit(tmpDir, defaultAnswers);
     const filePath = path.join(tmpDir, 'docs', 'RALPH-METHODOLOGY.md');
-    expect(fs.existsSync(filePath)).toBe(true);
-    const content = fs.readFileSync(filePath, 'utf-8');
-    expect(content).toContain('# Ralph Methodology');
+    expect(fs.existsSync(filePath)).toBe(false);
   });
 
   it('creates docs/tasks/T-000.md', async () => {
@@ -78,34 +76,29 @@ describe('runInit', () => {
     expect(content).toContain('{{project.rules}}');
   });
 
-  it('creates docs/prompts/boot.md', async () => {
+  it('does NOT create docs/prompts/boot.md', async () => {
     await runInit(tmpDir, defaultAnswers);
     const filePath = path.join(tmpDir, 'docs', 'prompts', 'boot.md');
-    expect(fs.existsSync(filePath)).toBe(true);
-    const content = fs.readFileSync(filePath, 'utf-8');
-    expect(content).toContain('{{task.id}}');
-    expect(content).toContain('{{config.language}}');
+    expect(fs.existsSync(filePath)).toBe(false);
   });
 
-  it('creates docs/prompts/system.md', async () => {
+  it('does NOT create docs/prompts/system.md', async () => {
     await runInit(tmpDir, defaultAnswers);
     const filePath = path.join(tmpDir, 'docs', 'prompts', 'system.md');
-    expect(fs.existsSync(filePath)).toBe(true);
-    const content = fs.readFileSync(filePath, 'utf-8');
-    // system.md should contain methodology rules but no template variables
-    expect(content).toContain('[PHASE]');
-    expect(content).not.toMatch(/\{\{.*?\}\}/);
+    expect(fs.existsSync(filePath)).toBe(false);
   });
 
   it('returns a summary of created files', async () => {
     const result = await runInit(tmpDir, defaultAnswers);
     expect(result.created).toContain('docs/PRD.md');
-    expect(result.created).toContain('docs/RALPH-METHODOLOGY.md');
     expect(result.created).toContain('docs/tasks/T-000.md');
     expect(result.created).toContain('.claude/CLAUDE.md');
-    expect(result.created).toContain('docs/prompts/boot.md');
-    expect(result.created).toContain('docs/prompts/system.md');
     expect(result.created).toContain('docs/prompts/rules.md');
+    // Should NOT contain removed files
+    expect(result.created).not.toContain('docs/RALPH-METHODOLOGY.md');
+    expect(result.created).not.toContain('docs/prompts/boot.md');
+    expect(result.created).not.toContain('docs/prompts/system.md');
+    expect(result.created).not.toContain('docs/prompts/README.md');
     expect(result.skipped).toHaveLength(0);
     expect(result.overwritten).toHaveLength(0);
   });

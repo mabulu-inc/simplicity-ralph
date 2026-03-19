@@ -4,6 +4,8 @@ import type { Task } from './tasks.js';
 import type { ProjectConfig } from './config.js';
 import { extractPrdSections } from './prd-extractor.js';
 import { generateCodebaseIndex } from './codebase-index.js';
+import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
+import { defaultSystemPromptTemplate } from '../templates/system-prompt.js';
 
 export function interpolateTemplate(
   template: string,
@@ -41,6 +43,27 @@ export function interpolateTemplate(
   });
 }
 
+function isDuplicateOfBuiltIn(userContent: string, builtInContent: string): boolean {
+  return userContent.replace(/\s+/g, '') === builtInContent.replace(/\s+/g, '');
+}
+
+function appendExtension(base: string, extension: string): string {
+  return `${base}\n\n--- Project Extensions ---\n\n${extension}`;
+}
+
+async function readExtensionFile(filePath: string, builtIn: string): Promise<string | undefined> {
+  let content: string;
+  try {
+    content = await readFile(filePath, 'utf-8');
+  } catch {
+    return undefined;
+  }
+  if (isDuplicateOfBuiltIn(content, builtIn)) {
+    return undefined;
+  }
+  return content;
+}
+
 export async function loadAndInterpolate(
   projectDir: string,
   task: Task,
@@ -48,15 +71,12 @@ export async function loadAndInterpolate(
   retryContext = '',
   preflightBaseline = '',
 ): Promise<string> {
-  const templatePath = join(projectDir, 'docs', 'prompts', 'boot.md');
-  let template: string;
-  try {
-    template = await readFile(templatePath, 'utf-8');
-  } catch {
-    throw new Error(
-      `Boot prompt template not found at docs/prompts/boot.md. Run 'ralph init' to create it.`,
-    );
-  }
+  const builtInBoot = defaultBootPromptTemplate();
+
+  const extensionPath = join(projectDir, 'docs', 'prompts', 'boot.md');
+  const extension = await readExtensionFile(extensionPath, builtInBoot);
+
+  const template = extension ? appendExtension(builtInBoot, extension) : builtInBoot;
 
   let projectRules = '';
   try {
@@ -104,13 +124,12 @@ export async function loadLayeredPrompt(
   retryContext = '',
   preflightBaseline = '',
 ): Promise<LayeredPrompt> {
-  const systemPath = join(projectDir, 'docs', 'prompts', 'system.md');
-  let systemPrompt: string | undefined;
-  try {
-    systemPrompt = await readFile(systemPath, 'utf-8');
-  } catch {
-    // system.md doesn't exist — fallback to single-prompt mode
-  }
+  const builtInSystem = defaultSystemPromptTemplate();
+
+  const extensionPath = join(projectDir, 'docs', 'prompts', 'system.md');
+  const extension = await readExtensionFile(extensionPath, builtInSystem);
+
+  const systemPrompt = extension ? appendExtension(builtInSystem, extension) : builtInSystem;
 
   const userPrompt = await loadAndInterpolate(
     projectDir,
@@ -120,9 +139,5 @@ export async function loadLayeredPrompt(
     preflightBaseline,
   );
 
-  if (systemPrompt) {
-    return { systemPrompt, userPrompt };
-  }
-
-  return { userPrompt };
+  return { systemPrompt, userPrompt };
 }

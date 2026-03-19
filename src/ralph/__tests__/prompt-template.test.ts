@@ -8,6 +8,8 @@ import {
   loadAndInterpolate,
   loadLayeredPrompt,
 } from '../core/prompt-template.js';
+import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
+import { defaultSystemPromptTemplate } from '../templates/system-prompt.js';
 import type { Task } from '../core/tasks.js';
 import type { ProjectConfig } from '../core/config.js';
 
@@ -239,85 +241,81 @@ describe('loadAndInterpolate', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('loads a template file and interpolates variables', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Task {{task.id}}: {{task.title}}');
-
+  it('uses built-in boot template as the base (no user file needed)', async () => {
+    // No docs/prompts/boot.md — should still work using built-in template
     const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
-    expect(result).toBe('Task T-005: Build feature X');
+    expect(result).toContain('T-005');
+    expect(result).toContain('Build feature X');
+    expect(result).toContain('TypeScript');
   });
 
-  it('throws with clear error when template file is missing', async () => {
-    await expect(loadAndInterpolate(tmpDir, mockTask, mockConfig)).rejects.toThrow(
-      'docs/prompts/boot.md',
+  it('appends user extension file content after separator when boot.md exists', async () => {
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'boot.md'),
+      'Custom extension content for this project.',
     );
+
+    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
+    // Should contain built-in content
+    expect(result).toContain('T-005');
+    // Should contain separator
+    expect(result).toContain('--- Project Extensions ---');
+    // Should contain extension content
+    expect(result).toContain('Custom extension content for this project.');
+  });
+
+  it('interpolates variables in both built-in and extension content', async () => {
+    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
+    await writeFile(
+      join(tmpDir, 'docs', 'prompts', 'boot.md'),
+      'Extension for {{task.id}} using {{config.language}}.',
+    );
+
+    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
+    // Built-in variables interpolated
+    expect(result).toContain('T-005');
+    // Extension variables interpolated
+    expect(result).toContain('Extension for T-005 using TypeScript.');
   });
 
   it('reads docs/prompts/rules.md and injects as {{project.rules}}', async () => {
     await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Rules: {{project.rules}}');
     await writeFile(
       join(tmpDir, 'docs', 'prompts', 'rules.md'),
       '- Do not use TodoWrite\n- All code under src/',
     );
 
     const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
-    expect(result).toBe('Rules: - Do not use TodoWrite\n- All code under src/');
+    expect(result).toContain('- Do not use TodoWrite');
+    expect(result).toContain('- All code under src/');
   });
 
   it('resolves {{project.rules}} to empty string when rules.md does not exist', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Rules: [{{project.rules}}]');
-
     const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
-    expect(result).toBe('Rules: []');
+    // The built-in template has {{project.rules}} which should resolve to empty
+    const builtIn = defaultBootPromptTemplate();
+    expect(builtIn).toContain('{{project.rules}}');
+    // In output it should be replaced with empty string
+    expect(result).not.toContain('{{project.rules}}');
   });
 
-  it('resolves {{project.rules}} to empty string when rules.md is empty', async () => {
+  it('injects PRD section content when extension uses {{task.prdContent}}', async () => {
     await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Rules: [{{project.rules}}]');
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'rules.md'), '');
-
-    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
-    expect(result).toBe('Rules: []');
-  });
-
-  it('injects PRD section content as {{task.prdContent}}', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'PRD: {{task.prdContent}}');
     await writeFile(
       join(tmpDir, 'docs', 'PRD.md'),
       '## 3. Commands\n\n### 3.1 Init\n\nInit details.\n\n### 3.2 Loop\n\nLoop details.\n',
     );
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'PRD Content: {{task.prdContent}}');
 
-    const taskWith32 = { ...mockTask, prdReference: '§3.1' };
-    const result = await loadAndInterpolate(tmpDir, taskWith32, mockConfig);
+    const taskWith31 = { ...mockTask, prdReference: '§3.1' };
+    const result = await loadAndInterpolate(tmpDir, taskWith31, mockConfig);
     expect(result).toContain('Init details.');
     expect(result).not.toContain('Loop details.');
   });
 
-  it('resolves {{task.prdContent}} to empty string when PRD.md is missing', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'PRD: [{{task.prdContent}}]');
-
-    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
-    expect(result).toBe('PRD: []');
-  });
-
-  it('resolves {{task.prdContent}} to empty string when prdReference is empty', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'PRD: [{{task.prdContent}}]');
-    await writeFile(join(tmpDir, 'docs', 'PRD.md'), '## 1. Stuff\n\nContent.\n');
-
-    const taskNoRef = { ...mockTask, prdReference: '' };
-    const result = await loadAndInterpolate(tmpDir, taskNoRef, mockConfig);
-    expect(result).toBe('PRD: []');
-  });
-
   it('generates and injects codebase index as {{codebaseIndex}}', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
     await mkdir(join(tmpDir, 'src'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Index:\n{{codebaseIndex}}');
     await writeFile(join(tmpDir, 'src', 'helper.ts'), 'export function doStuff() {}\n');
 
     const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
@@ -325,34 +323,24 @@ describe('loadAndInterpolate', () => {
     expect(result).toContain('doStuff');
   });
 
-  it('resolves {{codebaseIndex}} to empty string when no source files exist', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Index: [{{codebaseIndex}}]');
-
-    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
-    expect(result).toBe('Index: []');
-  });
-
   it('injects retry context as {{retryContext}} when provided', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(
-      join(tmpDir, 'docs', 'prompts', 'boot.md'),
-      'Task {{task.id}}\nRetry: {{retryContext}}',
-    );
-
     const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig, 'RETRY: Verify failed');
     expect(result).toContain('RETRY: Verify failed');
   });
 
   it('resolves {{retryContext}} to empty string on first attempt', async () => {
+    const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
+    expect(result).not.toContain('{{retryContext}}');
+  });
+
+  it('skips duplicate extension when boot.md matches built-in template exactly', async () => {
     await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(
-      join(tmpDir, 'docs', 'prompts', 'boot.md'),
-      'Task {{task.id}}\nRetry: [{{retryContext}}]',
-    );
+    // Write exact copy of built-in template
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), defaultBootPromptTemplate());
 
     const result = await loadAndInterpolate(tmpDir, mockTask, mockConfig);
-    expect(result).toContain('Retry: []');
+    // Should NOT contain the separator since the file is a duplicate
+    expect(result).not.toContain('--- Project Extensions ---');
   });
 });
 
@@ -367,64 +355,59 @@ describe('loadLayeredPrompt', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('returns separate systemPrompt and userPrompt when system.md exists', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'system.md'), 'System rules here.');
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Task {{task.id}}: {{task.title}}');
-
+  it('uses built-in system prompt as base (no user file needed)', async () => {
     const result = await loadLayeredPrompt(tmpDir, mockTask, mockConfig);
-    expect(result.systemPrompt).toBe('System rules here.');
-    expect(result.userPrompt).toBe('Task T-005: Build feature X');
+    // Should always have systemPrompt from built-in
+    expect(result.systemPrompt).toBeDefined();
+    expect(result.systemPrompt).toContain('[PHASE]');
+    // userPrompt uses built-in boot template
+    expect(result.userPrompt).toContain('T-005');
   });
 
-  it('concatenates system + user into userPrompt when system.md is missing', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Task {{task.id}}: {{task.title}}');
-
-    const result = await loadLayeredPrompt(tmpDir, mockTask, mockConfig);
-    expect(result.systemPrompt).toBeUndefined();
-    expect(result.userPrompt).toBe('Task T-005: Build feature X');
-  });
-
-  it('does not interpolate template variables in system.md', async () => {
+  it('appends user extension content to system prompt when system.md exists', async () => {
     await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
     await writeFile(
       join(tmpDir, 'docs', 'prompts', 'system.md'),
-      'No vars: {{task.id}} stays as-is.',
+      'Custom system extension for this project.',
     );
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Task {{task.id}}');
 
     const result = await loadLayeredPrompt(tmpDir, mockTask, mockConfig);
-    expect(result.systemPrompt).toBe('No vars: {{task.id}} stays as-is.');
+    // Built-in system content present
+    expect(result.systemPrompt).toContain('[PHASE]');
+    // Extension appended with separator
+    expect(result.systemPrompt).toContain('--- Project Extensions ---');
+    expect(result.systemPrompt).toContain('Custom system extension for this project.');
   });
 
-  it('interpolates boot.md with task and config variables', async () => {
+  it('skips duplicate extension when system.md matches built-in template exactly', async () => {
     await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'system.md'), 'System prompt.');
-    await writeFile(
-      join(tmpDir, 'docs', 'prompts', 'boot.md'),
-      'Lang: {{config.language}}, Task: {{task.id}}',
-    );
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'system.md'), defaultSystemPromptTemplate());
 
     const result = await loadLayeredPrompt(tmpDir, mockTask, mockConfig);
-    expect(result.userPrompt).toBe('Lang: TypeScript, Task: T-005');
+    expect(result.systemPrompt).not.toContain('--- Project Extensions ---');
+  });
+
+  it('works with zero config (no user extension files)', async () => {
+    const result = await loadLayeredPrompt(tmpDir, mockTask, mockConfig);
+    expect(result.systemPrompt).toBeDefined();
+    expect(result.userPrompt).toBeDefined();
+    expect(result.userPrompt).toContain('T-005');
+    expect(result.userPrompt).toContain('Build feature X');
   });
 
   it('passes retry context to user prompt interpolation', async () => {
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'system.md'), 'System.');
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Retry: {{retryContext}}');
-
     const result = await loadLayeredPrompt(tmpDir, mockTask, mockConfig, 'RETRY: failed');
     expect(result.userPrompt).toContain('RETRY: failed');
   });
 
-  it('throws when boot.md is missing', async () => {
+  it('interpolates variables in both built-in and extension boot content', async () => {
     await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'system.md'), 'System.');
+    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'Extension task: {{task.id}}');
 
-    await expect(loadLayeredPrompt(tmpDir, mockTask, mockConfig)).rejects.toThrow(
-      'docs/prompts/boot.md',
-    );
+    const result = await loadLayeredPrompt(tmpDir, mockTask, mockConfig);
+    // Built-in content interpolated
+    expect(result.userPrompt).toContain('T-005');
+    // Extension content interpolated
+    expect(result.userPrompt).toContain('Extension task: T-005');
   });
 });

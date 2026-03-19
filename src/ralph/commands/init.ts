@@ -7,14 +7,10 @@ import { generateAgentsMd } from '../templates/agents-md.js';
 import { generateContinueYaml } from '../templates/continue-yaml.js';
 import { generateCursorRules } from '../templates/cursor-rules.js';
 import { generateGeminiMd } from '../templates/gemini-md.js';
-import { generateMethodology } from '../templates/methodology.js';
 import { generatePrd } from '../templates/prd.js';
 import { generateTask000 } from '../templates/task-000.js';
-import { defaultBootPromptTemplate } from '../templates/boot-prompt.js';
-import { defaultSystemPromptTemplate } from '../templates/system-prompt.js';
 import { generateRules } from '../templates/rules-md.js';
 import { generateRalphConfigJson } from '../templates/ralph-config-json.js';
-import { generatePromptsReadme } from '../templates/prompts-readme.js';
 
 export interface InitAnswers {
   projectName: string;
@@ -201,13 +197,6 @@ export async function runInit(
 
   if (!promptsOnly) {
     await writeFile(rootDir, 'docs/PRD.md', generatePrd(config.projectName), onConflict, result);
-    await writeFile(
-      rootDir,
-      'docs/RALPH-METHODOLOGY.md',
-      generateMethodology(),
-      onConflict,
-      result,
-    );
     await writeFile(rootDir, 'docs/tasks/T-000.md', generateTask000(config), onConflict, result);
     const agent = answers.agent ?? 'claude';
     if (agent === 'gemini') {
@@ -235,16 +224,7 @@ export async function runInit(
     }
   }
 
-  await writeFile(rootDir, 'docs/prompts/boot.md', defaultBootPromptTemplate(), onConflict, result);
-  await writeFile(
-    rootDir,
-    'docs/prompts/system.md',
-    defaultSystemPromptTemplate(),
-    onConflict,
-    result,
-  );
   await writeFile(rootDir, 'docs/prompts/rules.md', generateRules(config), onConflict, result);
-  await writeFile(rootDir, 'docs/prompts/README.md', generatePromptsReadme(), onConflict, result);
 
   if (!promptsOnly) {
     await writeFile(

@@ -51,7 +51,7 @@ export function formatHelp(unknown?: string): string {
   lines.push('  milestones  Generate milestones summary');
   lines.push('  shas        Backfill commit SHAs in task files');
   lines.push('  cost        Calculate token usage and costs');
-  lines.push('  update      Refresh methodology and prompt templates');
+  lines.push('  update      (deprecated) Built-in templates are now automatic');
   lines.push('  retry       Retry BLOCKED tasks from scratch');
 
   return lines.join('\n');
@@ -87,7 +87,7 @@ const COMMAND_HELP: Record<Command, { description: string; usage: string }> = {
     usage: 'ralph cost',
   },
   update: {
-    description: 'Refresh methodology and prompt templates',
+    description: '(Deprecated) Built-in templates are now automatic',
     usage: 'ralph update',
   },
   retry: {

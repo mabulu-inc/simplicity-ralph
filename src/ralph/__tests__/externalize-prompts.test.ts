@@ -61,7 +61,7 @@ describe('generatePromptsReadme', () => {
   });
 });
 
-describe('runInit creates docs/prompts/README.md', () => {
+describe('runInit does NOT create docs/prompts/README.md', () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -72,22 +72,15 @@ describe('runInit creates docs/prompts/README.md', () => {
     cleanup(tmpDir);
   });
 
-  it('creates docs/prompts/README.md', async () => {
+  it('does not create docs/prompts/README.md', async () => {
     await runInit(tmpDir, defaultAnswers);
     const filePath = path.join(tmpDir, 'docs', 'prompts', 'README.md');
-    expect(fs.existsSync(filePath)).toBe(true);
+    expect(fs.existsSync(filePath)).toBe(false);
   });
 
-  it('includes README.md in created files list', async () => {
+  it('does not include README.md in created files list', async () => {
     const result = await runInit(tmpDir, defaultAnswers);
-    expect(result.created).toContain('docs/prompts/README.md');
-  });
-
-  it('README.md contains template variable documentation', async () => {
-    await runInit(tmpDir, defaultAnswers);
-    const content = fs.readFileSync(path.join(tmpDir, 'docs', 'prompts', 'README.md'), 'utf-8');
-    expect(content).toContain('{{task.id}}');
-    expect(content).toContain('{{config.language}}');
+    expect(result.created).not.toContain('docs/prompts/README.md');
   });
 });
 
@@ -102,17 +95,13 @@ describe('runInit --prompts-only', () => {
     cleanup(tmpDir);
   });
 
-  it('only creates prompt files when promptsOnly is true', async () => {
+  it('only creates rules.md when promptsOnly is true', async () => {
     const result = await runInit(tmpDir, defaultAnswers, { promptsOnly: true });
-    const promptFiles = [
-      'docs/prompts/boot.md',
-      'docs/prompts/system.md',
-      'docs/prompts/rules.md',
-      'docs/prompts/README.md',
-    ];
-    for (const f of promptFiles) {
-      expect(result.created).toContain(f);
-    }
+    expect(result.created).toContain('docs/prompts/rules.md');
+    // boot.md, system.md, README.md are no longer generated
+    expect(result.created).not.toContain('docs/prompts/boot.md');
+    expect(result.created).not.toContain('docs/prompts/system.md');
+    expect(result.created).not.toContain('docs/prompts/README.md');
     // Non-prompt files should NOT be created
     expect(result.created).not.toContain('docs/PRD.md');
     expect(result.created).not.toContain('docs/RALPH-METHODOLOGY.md');
@@ -121,12 +110,12 @@ describe('runInit --prompts-only', () => {
     expect(result.created).not.toContain('ralph.config.json');
   });
 
-  it('creates the prompt files on disk', async () => {
+  it('creates rules.md on disk but not removed prompt files', async () => {
     await runInit(tmpDir, defaultAnswers, { promptsOnly: true });
-    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'boot.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'system.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'rules.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'README.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'boot.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'system.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'README.md'))).toBe(false);
   });
 
   it('does not create non-prompt files on disk', async () => {
@@ -136,12 +125,12 @@ describe('runInit --prompts-only', () => {
     expect(fs.existsSync(path.join(tmpDir, 'ralph.config.json'))).toBe(false);
   });
 
-  it('respects onConflict for existing prompt files', async () => {
+  it('respects onConflict for existing rules.md', async () => {
     fs.mkdirSync(path.join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'docs', 'prompts', 'boot.md'), '# Custom boot');
+    fs.writeFileSync(path.join(tmpDir, 'docs', 'prompts', 'rules.md'), '# Custom rules');
     const onConflict = async () => false;
     const result = await runInit(tmpDir, defaultAnswers, { promptsOnly: true, onConflict });
-    expect(result.skipped).toContain('docs/prompts/boot.md');
+    expect(result.skipped).toContain('docs/prompts/rules.md');
   });
 });
 

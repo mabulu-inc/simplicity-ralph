@@ -48,21 +48,22 @@ describe('integration: ralph init creates expected file structure', () => {
     cleanup(tmpDir);
   });
 
-  it('creates all nine scaffold files in a fresh directory', async () => {
+  it('creates all scaffold files in a fresh directory', async () => {
     const result = await runInit(tmpDir, defaultAnswers);
 
-    expect(result.created).toHaveLength(9);
+    expect(result.created).toHaveLength(5);
     expect(result.skipped).toHaveLength(0);
 
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'PRD.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'docs', 'RALPH-METHODOLOGY.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'tasks', 'T-000.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'CLAUDE.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'rules.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'boot.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'system.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'README.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'ralph.config.json'))).toBe(true);
+    // These are no longer generated — built-in templates are used at runtime
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'RALPH-METHODOLOGY.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'boot.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'system.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'prompts', 'README.md'))).toBe(false);
   });
 
   it('generated files contain project-specific content', async () => {
@@ -73,13 +74,9 @@ describe('integration: ralph init creates expected file structure', () => {
 
     const claudeMd = fs.readFileSync(path.join(tmpDir, '.claude', 'CLAUDE.md'), 'utf-8');
     expect(claudeMd).toContain('Build integration-test-app');
-    expect(claudeMd).toContain('RALPH-METHODOLOGY.md');
 
     const task = fs.readFileSync(path.join(tmpDir, 'docs', 'tasks', 'T-000.md'), 'utf-8');
     expect(task).toContain('T-000');
-
-    const methodology = fs.readFileSync(path.join(tmpDir, 'docs', 'RALPH-METHODOLOGY.md'), 'utf-8');
-    expect(methodology).toContain('Ralph Methodology');
   });
 
   it('init output can be consumed by scanTasks', async () => {

@@ -508,7 +508,7 @@ describe('LoopOrchestrator', () => {
     expect(allArgs).not.toContain('RETRY CONTEXT');
   });
 
-  it('passes system prompt separately when system.md exists and provider supports it', async () => {
+  it('passes system prompt separately when provider supports it (built-in + extension)', async () => {
     resetRegistry();
     resetProviderInit();
     await setupProject();
@@ -525,7 +525,12 @@ describe('LoopOrchestrator', () => {
     const calledArgs = spawnWithCapture.mock.calls[0][1] as string[];
     expect(calledArgs).toContain('--system-prompt');
     const flagIdx = calledArgs.indexOf('--system-prompt');
-    expect(calledArgs[flagIdx + 1]).toBe('You are a methodology-following agent.');
+    const systemPrompt = calledArgs[flagIdx + 1];
+    // Should contain built-in system prompt content
+    expect(systemPrompt).toContain('[PHASE]');
+    // Should contain extension content after separator
+    expect(systemPrompt).toContain('--- Project Extensions ---');
+    expect(systemPrompt).toContain('You are a methodology-following agent.');
   });
 
   it('concatenates system + user prompt when provider does not support system prompt', async () => {

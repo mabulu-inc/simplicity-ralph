@@ -244,17 +244,8 @@ describe('preflightChecks', () => {
     expect(result.errors).toContain('docs/tasks/ directory not found');
   });
 
-  it('fails when boot.md does not exist', async () => {
+  it('succeeds when only tasks directory exists (boot.md no longer required)', async () => {
     await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
-    const result = await preflightChecks(tmpDir);
-    expect(result.ok).toBe(false);
-    expect(result.errors).toContain('docs/prompts/boot.md not found');
-  });
-
-  it('succeeds when tasks directory and boot.md exist', async () => {
-    await mkdir(join(tmpDir, 'docs', 'tasks'), { recursive: true });
-    await mkdir(join(tmpDir, 'docs', 'prompts'), { recursive: true });
-    await writeFile(join(tmpDir, 'docs', 'prompts', 'boot.md'), 'template');
     const result = await preflightChecks(tmpDir);
     expect(result.ok).toBe(true);
     expect(result.errors).toHaveLength(0);

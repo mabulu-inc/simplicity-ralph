@@ -108,12 +108,6 @@ export async function preflightChecks(projectDir: string): Promise<PreflightResu
     errors.push('docs/tasks/ directory not found');
   }
 
-  try {
-    await access(join(projectDir, 'docs', 'prompts', 'boot.md'));
-  } catch {
-    errors.push('docs/prompts/boot.md not found');
-  }
-
   return { ok: errors.length === 0, errors };
 }
 
