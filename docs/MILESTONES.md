@@ -106,12 +106,13 @@
 - [x] T-050: Remove --no-db flag dead code — $0.31
 - [x] T-051: Inject timestamps into JSONL log lines — $0.46
 
-## 12 — Documentation ($2.73)
+## 12 — Documentation ($3.26)
 
 - [x] T-053: Add README and GitHub Pages documentation site — $1.46
 - [x] T-072: Rewrite README for developer onboarding — $0.25
 - [x] T-091: Fix 15 stale and missing documentation items across README and docs-site — $0.74
 - [x] T-092: Fix 3 remaining stale docs-site references — $0.28
+- [x] T-093: Fix 13 remaining docs-site issues (agents pages, broken links, phantom data) — $0.53
 
 ## 13 — Loop Efficiency ($8.55)
 
@@ -152,4 +153,4 @@
 - [x] T-084: ralph review --coach — project-wide coaching and improvement suggestions — $1.72
 - [x] T-090: Redesign coaching as AI-powered analysis, not heuristic checks — $1.03
 
-**Grand Total: $83.71**
+**Grand Total: $84.24**
