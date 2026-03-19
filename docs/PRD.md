@@ -142,7 +142,7 @@ The main AI development loop. Runs the configured AI coding agent in stateless i
 
 1. **Pre-flight** — verify the configured agent CLI is installed and on PATH, `docs/tasks/` exists
 2. **Database** — if project has Docker Compose, start containers before each iteration
-3. **Clean slate** — discard unstaged changes from crashed iterations, except in protected planning paths (`docs/tasks/`, `docs/PRD.md`, `docs/prompts/`, `docs/RALPH-METHODOLOGY.md`, `ralph.config.json`). These human-authored planning artifacts must survive the clean slate so users can queue task files, PRD edits, and prompt changes between iterations without committing first.
+3. **Clean slate** — discard unstaged changes from crashed iterations, except in protected planning paths (`docs/tasks/`, `docs/PRD.md`, `docs/prompts/`, `ralph.config.json`). These human-authored planning artifacts must survive the clean slate so users can queue task files, PRD edits, and prompt changes between iterations without committing first.
 4. **Find next task** — scan task files, select lowest-numbered eligible TODO
 5. **Build prompt** — assemble the prompt from built-in templates and user extensions (see §5), interpolate task and config variables
 6. **Launch agent** — spawn the configured agent CLI with the rendered prompt and resolved model (task-level model overrides project default; see §11)
@@ -402,7 +402,43 @@ ralph task "Fix login bug" --depends T-040 --complexity light --milestone "3 —
 - `--roles <names>` — comma-separated role names for per-task role selection
 - `--dry-run` — print the task file to stdout without creating it
 
-### 3.11 `ralph review`
+### 3.11 `ralph migrate`
+
+One-time migration tool for projects created with ralph versions that copied prompt templates and agent instructions files into the user's project. Under the built-in-first architecture (§5), these copied files are redundant — ralph reads from its compiled code at runtime. But users may have customized them, so they can't be blindly deleted.
+
+```bash
+ralph migrate
+```
+
+**Scans for legacy files:**
+
+- `docs/prompts/boot.md` — old boot prompt template copy
+- `docs/prompts/system.md` — old system prompt template copy
+- `docs/prompts/README.md` — old prompt directory documentation
+- `docs/RALPH-METHODOLOGY.md` — old methodology copy
+- `.claude/CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `.continue/config.yaml`, `.cursor/rules/ralph.md` — agent instructions files that may contain user customizations beyond ralph's generated stub. Note: the old `ralph update` command silently overwrote these without confirmation.
+
+**For each file found, ralph compares it against known built-in templates** (current and historical versions, with whitespace normalization). Three outcomes:
+
+1. **Exact match (no user changes)** — the file is a verbatim copy of a known built-in template. Ralph deletes it automatically and reports: `Removed docs/prompts/boot.md (matched built-in template, no user changes)`
+
+2. **User modifications detected** — the file differs from all known built-in templates. Ralph extracts the user-specific content (the diff against the closest matching built-in), writes it to the corresponding extension file (e.g., `docs/prompts/boot.md` is rewritten to contain only the user's additions), and reports what it did: `Migrated docs/prompts/system.md → kept user extensions (N lines), removed built-in content`. The user is prompted to review the extracted extensions before confirming.
+
+3. **No matching template found** — the file doesn't resemble any known built-in. Ralph treats the entire file as user content, leaves it in place as an extension, and warns: `docs/prompts/boot.md does not match any known template — treating as user extension. Review with: ralph show boot-prompt`
+
+**Options:**
+
+- `--dry-run` — report what would happen without modifying any files
+- `--force` — skip confirmation prompts and apply all changes (for CI/scripting)
+
+**Behavior:**
+
+- Always runs `--dry-run` first and shows the plan before asking for confirmation
+- After migration, runs `ralph show system-prompt` and `ralph show boot-prompt` so the user can verify the effective content
+- Idempotent — running it again after migration reports "nothing to migrate"
+- If the `ralph update` command is invoked, it redirects the user to `ralph migrate` with an explanation
+
+### 3.12 `ralph review`
 
 Post-execution analysis, failure diagnosis, and coaching. This command helps users understand what happened during a task's execution, fix problems with failed tasks, and improve their task definitions, role customizations, and extensions over time.
 
