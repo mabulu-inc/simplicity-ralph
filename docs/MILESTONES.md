@@ -147,11 +147,12 @@
 - [x] T-085: ralph migrate — clean up legacy prompt files from pre-built-in-first projects — $1.32
 - [x] T-086: Remove agent instructions file generation and dependency — $1.07
 
-## 16 — Observability ($5.37)
+## 16 — Observability ($6.11)
 
 - [x] T-083: ralph review T-NNN — task execution analysis and failure diagnosis — $1.77
 - [x] T-084: ralph review --coach — project-wide coaching and improvement suggestions — $1.72
 - [x] T-090: Redesign coaching as AI-powered analysis, not heuristic checks — $1.03
 - [x] T-094: Fix ralph review --coach to read agent config from ralph.config.json — $0.85
+- [x] T-095: Add textOutputFormat to AgentProvider for coaching text output — $0.74
 
-**Grand Total: $85.09**
+**Grand Total: $85.83**
