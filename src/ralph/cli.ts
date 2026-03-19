@@ -8,6 +8,7 @@ const COMMANDS = [
   'cost',
   'update',
   'retry',
+  'review',
   'show',
   'task',
 ] as const;
@@ -55,6 +56,7 @@ export function formatHelp(unknown?: string): string {
   lines.push('  cost        Calculate token usage and costs');
   lines.push('  update      (deprecated) Built-in templates are now automatic');
   lines.push('  retry       Retry BLOCKED tasks from scratch');
+  lines.push('  review      Analyze task execution and diagnose failures');
   lines.push('  show        Display effective prompt content');
   lines.push('  task        Scaffold a new task file');
 
@@ -97,6 +99,10 @@ const COMMAND_HELP: Record<Command, { description: string; usage: string }> = {
   retry: {
     description: 'Retry BLOCKED tasks from scratch',
     usage: 'ralph retry <task-id> [task-id ...]',
+  },
+  review: {
+    description: 'Analyze task execution and diagnose failures',
+    usage: 'ralph review <task-id> [--diagnose] [--json] [--verbose]',
   },
   show: {
     description: 'Display effective prompt content',
