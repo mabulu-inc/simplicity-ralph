@@ -58,6 +58,22 @@ describe('CLI dispatch', () => {
     const result = dispatch(['loop', '-n', '5', '--help']);
     expect(result).toEqual({ action: 'help', command: 'loop' });
   });
+
+  it('returns version action for --version flag', () => {
+    const result = dispatch(['--version']);
+    expect(result).toEqual({ action: 'version' });
+  });
+
+  it('returns version action for -V flag', () => {
+    const result = dispatch(['-V']);
+    expect(result).toEqual({ action: 'version' });
+  });
+
+  it('--help still works after adding --version support', () => {
+    expect(dispatch(['--help'])).toEqual({ action: 'help' });
+    expect(dispatch(['-h'])).toEqual({ action: 'help' });
+    expect(dispatch([])).toEqual({ action: 'help' });
+  });
 });
 
 describe('CLI help text', () => {

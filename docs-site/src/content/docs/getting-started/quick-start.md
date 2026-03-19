@@ -3,6 +3,14 @@ title: Quick Start
 description: Go from zero to your first completed task in under 60 seconds.
 ---
 
+## Check Your Version
+
+```bash
+ralph --version
+# or
+ralph -V
+```
+
 ## Prerequisites
 
 - Node.js 20+

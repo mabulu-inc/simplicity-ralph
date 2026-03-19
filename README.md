@@ -145,6 +145,13 @@ This shows a live dashboard with the current task, phase progress, and recent ag
 | `shas`       | Backfill commit SHAs into completed task files            |
 | `kill`       | Stop a running ralph loop process                         |
 
+### Global Flags
+
+| Flag              | Description            |
+| ----------------- | ---------------------- |
+| `--version`, `-V` | Print version and exit |
+| `--help`, `-h`    | Show help text         |
+
 ## Customizing Ralph
 
 Ralph's built-in prompts, roles, and methodology are always current from the package — you never need to manage or update them. To customize ralph's behavior, you create optional **extension files** in `docs/prompts/` that are appended to the built-in content:

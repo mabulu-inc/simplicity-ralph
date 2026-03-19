@@ -1,8 +1,16 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
 import { dispatch, formatHelp, formatCommandHelp } from './cli.js';
 
 async function main(): Promise<void> {
   const result = dispatch(process.argv.slice(2));
+
+  if (result.action === 'version') {
+    const require = createRequire(import.meta.url);
+    const pkg = require('../../package.json') as { version: string };
+    console.log(pkg.version);
+    return;
+  }
 
   if (result.action === 'help') {
     if (result.command) {

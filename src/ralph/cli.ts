@@ -17,6 +17,7 @@ type Command = (typeof COMMANDS)[number];
 
 export type DispatchResult =
   | { action: 'help'; unknown?: string; command?: Command }
+  | { action: 'version' }
   | { action: Command; args: string[] };
 
 export function dispatch(argv: string[]): DispatchResult {
@@ -24,6 +25,10 @@ export function dispatch(argv: string[]): DispatchResult {
 
   if (!first || first === '--help' || first === '-h') {
     return { action: 'help' };
+  }
+
+  if (first === '--version' || first === '-V') {
+    return { action: 'version' };
   }
 
   if (COMMANDS.includes(first as Command)) {
