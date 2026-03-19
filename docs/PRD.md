@@ -488,28 +488,37 @@ For BLOCKED or failed tasks, analyzes the log to identify the root cause and rec
   - Missing dependency → identify which files or modules the agent tried to use but didn't exist
   - Vague description → flag if the Description section is short or lacks acceptance criteria
 
-#### Project coaching: `ralph review --coach`
+#### Task-specific coaching: `ralph review T-NNN --coach`
 
-Analyzes all completed and failed tasks, role customizations, and extensions to suggest improvements:
+When `--coach` is combined with a task ID, the coaching is **specific to that task**. Ralph gathers the task's execution data (log, role commentary, phase durations, retries, outcome) and sends it to the configured AI agent for intelligent analysis. This is not a heuristic check — it is an AI-powered review that understands context.
 
-**Task quality analysis:**
+The AI receives:
 
-- Flags TODO tasks with vague or missing Description, no AC section, or missing PRD Reference
-- Identifies tasks that consistently exceed their complexity tier (took more turns/time than allocated) — suggests upgrading to a higher tier or splitting
-- Identifies tasks that completed well under their tier — suggests downgrading to save budget
-- Flags tasks with no Depends that might benefit from explicit dependencies (based on file overlap with other tasks)
+- The task file content (description, AC, hints, etc.)
+- The execution log summary (phases reached, role commentary, errors, outcome)
+- Retry history if applicable
+- The project's extension files and role customizations for context
 
-**Role effectiveness analysis:**
+The AI produces:
 
-- Identifies roles that skip on most tasks — suggests disabling them project-wide via `docs/prompts/roles.md` if they're not relevant
-- Identifies roles whose commentary is frequently followed by rework — suggests the role's review criteria may need refinement via override
-- Flags if custom roles are defined but never referenced in task `Roles` fields
+- **What went well** — specific strengths in the task definition and execution
+- **What could improve** — specific, actionable suggestions (not generic boilerplate like "add AC")
+- **Role observations** — which roles provided valuable input, which were superficial, and how their commentary influenced the outcome
+- **Task definition quality** — whether the description, AC, and hints were sufficient for the agent to succeed, with specific suggestions for improvement
+- **Suggested changes** — concrete edits to the task file, extensions, or role customizations that would improve future similar tasks
 
-**Extension health:**
+#### Project-wide coaching: `ralph review --coach`
 
-- Checks if user extension files exist and reports their status
-- If `docs/prompts/rules.md` is empty or default, suggests adding project-specific rules based on patterns observed in completed tasks (e.g., all tasks use the same test directory pattern)
-- If task complexity is frequently miscategorized, suggests adding Hints to underperforming tasks
+When `--coach` is used without a task ID, ralph analyzes patterns across all tasks and sends the aggregated data to the AI for project-level coaching. The AI receives summaries of all completed and failed tasks, not just heuristic counts.
+
+The AI produces:
+
+- **Pattern analysis** — recurring issues across tasks (e.g., "tasks in milestone 3 consistently exceed their turn budget, suggesting the PRD section needs decomposition")
+- **Role effectiveness** — which roles are adding value vs. rubber-stamping, based on actual commentary content rather than skip counts
+- **Extension recommendations** — specific rules, role overrides, or system prompt extensions that would improve outcomes, based on observed patterns in the logs
+- **Task authoring guidance** — project-specific advice on how to write better tasks for this codebase (not generic advice that applies to any project)
+
+The coaching output must be contextual and specific. "Missing AC section" repeated 80 times for tasks written before the AC convention existed is not coaching — it's noise. The AI must account for task status (TODO vs. DONE), project evolution over time, and whether a suggestion is actionable given the current state.
 
 **Options:**
 
