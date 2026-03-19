@@ -140,7 +140,7 @@ The main AI development loop. Runs the configured AI coding agent in stateless i
 
 **Iteration cycle:**
 
-1. **Pre-flight** — verify the configured agent CLI is installed and on PATH, `docs/tasks/` exists
+1. **Pre-flight** — verify the configured agent CLI is installed and on PATH, `docs/tasks/` exists. Run `ralph migrate --dry-run` internally — if it finds legacy files to act on, print its plan summary and warn: `Legacy prompt files detected. Run 'ralph migrate' to clean up. Continuing with built-in templates.` The loop proceeds — this is a warning, not a blocker.
 2. **Database** — if project has Docker Compose, start containers before each iteration
 3. **Clean slate** — discard unstaged changes from crashed iterations, except in protected planning paths (`docs/tasks/`, `docs/PRD.md`, `docs/prompts/`, `ralph.config.json`). These human-authored planning artifacts must survive the clean slate so users can queue task files, PRD edits, and prompt changes between iterations without committing first.
 4. **Find next task** — scan task files, select lowest-numbered eligible TODO
@@ -358,7 +358,17 @@ Transparency command that displays the effective content ralph uses at runtime �
 
 - Each subcommand displays the merged result of built-in content + user extensions
 - If no user extensions exist for a given layer, the built-in content is shown as-is
-- If user extensions exist, they are clearly delineated in the output (e.g., a separator showing where built-in ends and user extensions begin)
+- If user extensions exist, they are clearly delineated and highlighted in the output — the user can instantly see what they contributed vs. what ralph ships:
+
+  ```
+  System prompt (built-in):
+    You are in Ralph Loop iteration...
+    [PHASE] Entering: ...
+
+  System prompt (your extensions):
+    ► Always use explicit return types on exported functions.
+    ► Integration tests must hit a real database, not mocks.
+  ```
 
 ### 3.10 `ralph task`
 
@@ -418,13 +428,23 @@ ralph migrate
 - `docs/RALPH-METHODOLOGY.md` — old methodology copy
 - `.claude/CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `.continue/config.yaml`, `.cursor/rules/ralph.md` — agent instructions files that may contain user customizations beyond ralph's generated stub. Note: the old `ralph update` command silently overwrote these without confirmation.
 
-**For each file found, ralph compares it against known built-in templates** (current and historical versions, with whitespace normalization). Three outcomes:
+**Template matching** uses a library of historical template snapshots — every distinct version of each template ever shipped by ralph, stored in `src/ralph/templates/snapshots/`. For each legacy file, ralph compares it (with whitespace normalization) against all known snapshots for that file type. Three outcomes:
 
-1. **Exact match (no user changes)** — the file is a verbatim copy of a known built-in template. Ralph deletes it automatically and reports: `Removed docs/prompts/boot.md (matched built-in template, no user changes)`
+1. **Exact match (no user changes)** — the file matches a known historical snapshot verbatim. Ralph deletes it automatically and reports: `✓ REMOVE docs/prompts/boot.md (unmodified copy of built-in v0.5.0 template)`
 
-2. **User modifications detected** — the file differs from all known built-in templates. Ralph extracts the user-specific content (the diff against the closest matching built-in), writes it to the corresponding extension file (e.g., `docs/prompts/boot.md` is rewritten to contain only the user's additions), and reports what it did: `Migrated docs/prompts/system.md → kept user extensions (N lines), removed built-in content`. The user is prompted to review the extracted extensions before confirming.
+2. **Modified ralph template (user content detected)** — the file partially matches a known snapshot but contains additions or changes. Ralph diffs against the closest matching snapshot, extracts the user-specific lines/sections (content not present in any known snapshot version), and displays them:
 
-3. **No matching template found** — the file doesn't resemble any known built-in. Ralph treats the entire file as user content, leaves it in place as an extension, and warns: `docs/prompts/boot.md does not match any known template — treating as user extension. Review with: ralph show boot-prompt`
+   ```
+   ⚡ MODIFIED docs/prompts/system.md (based on v0.6.0 template, 12 lines of user content)
+
+   User additions that will be preserved as extensions:
+     Always use explicit return types on exported functions.
+     Integration tests must hit a real database, not mocks.
+   ```
+
+   The user is prompted to confirm. On confirmation, ralph rewrites the file to contain only the extracted user content (the extension), stripping all built-in template content.
+
+3. **Not a ralph file** — the file doesn't match or partially match any known snapshot. This means the user created it independently — it is not a legacy ralph artifact. Ralph leaves it in place and reports: `– SKIP .claude/CLAUDE.md (not a ralph-generated file)`
 
 **Options:**
 
@@ -435,8 +455,10 @@ ralph migrate
 
 - Always runs `--dry-run` first and shows the plan before asking for confirmation
 - After migration, runs `ralph show system-prompt` and `ralph show boot-prompt` so the user can verify the effective content
-- Idempotent — running it again after migration reports "nothing to migrate"
+- Idempotent — running it again after migration reports: `No legacy files found — your project is using the built-in-first architecture. No migration needed.`
 - If the `ralph update` command is invoked, it redirects the user to `ralph migrate` with an explanation
+
+**Deprecation note:** `ralph migrate` exists solely for projects created with pre-built-in-first versions of ralph (before T-076). New projects created with the current `ralph init` will never have legacy prompt files — `init` no longer generates them. Once the pre-built-in-first install base has migrated, this command can be removed in a future major version.
 
 ### 3.12 `ralph review`
 
