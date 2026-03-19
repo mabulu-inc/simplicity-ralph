@@ -1,6 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assertSafeTaskId } from '../core/sanitize.js';
+import { runCoaching, formatCoachingOutput, formatCoachingJson } from '../core/coach.js';
 import {
   parseLogContent,
   extractPhaseTimeline,
@@ -334,9 +335,25 @@ export async function formatReviewJson(
 }
 
 export async function run(args: string[], cwd?: string): Promise<void> {
+  const projectDir = cwd ?? process.cwd();
+  const isJson = args.includes('--json') || args.includes('-j');
+  const isCoach = args.includes('--coach') || args.includes('-c');
+
+  if (isCoach) {
+    const result = await runCoaching(projectDir);
+    if (isJson) {
+      console.log(formatCoachingJson(result));
+    } else {
+      console.log(formatCoachingOutput(result));
+    }
+    return;
+  }
+
   const taskId = args.find((a) => !a.startsWith('-'));
   if (!taskId) {
-    console.error('Usage: ralph review <task ID> [--diagnose] [--json] [--verbose]');
+    console.error(
+      'Usage: ralph review <task ID> [--diagnose] [--json] [--verbose] | ralph review --coach [--json]',
+    );
     return;
   }
 
@@ -347,10 +364,7 @@ export async function run(args: string[], cwd?: string): Promise<void> {
     return;
   }
 
-  const projectDir = cwd ?? process.cwd();
   const logsDir = join(projectDir, '.ralph-logs');
-
-  const isJson = args.includes('--json') || args.includes('-j');
   const isDiagnose = args.includes('--diagnose') || args.includes('-d');
   const isVerbose = args.includes('--verbose') || args.includes('-v');
 

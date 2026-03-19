@@ -102,7 +102,8 @@ const COMMAND_HELP: Record<Command, { description: string; usage: string }> = {
   },
   review: {
     description: 'Analyze task execution and diagnose failures',
-    usage: 'ralph review <task-id> [--diagnose] [--json] [--verbose]',
+    usage:
+      'ralph review <task-id> [--diagnose] [--json] [--verbose] | ralph review --coach [--json]',
   },
   show: {
     description: 'Display effective prompt content',
