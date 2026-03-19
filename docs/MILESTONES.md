@@ -138,6 +138,7 @@
 - [ ] T-080: Update README and docs site for built-in-first architecture
 - [x] T-081: Exclusion-based task body extraction and ralph show task — $1.08
 - [x] T-082: ralph task command for scaffolding task files — $0.58
+- [ ] T-085: ralph migrate — clean up legacy prompt files from pre-built-in-first projects
 
 ## 16 — Observability
 
