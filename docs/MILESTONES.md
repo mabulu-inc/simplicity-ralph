@@ -139,10 +139,11 @@
 - [x] T-081: Exclusion-based task body extraction and ralph show task — $1.08
 - [x] T-082: ralph task command for scaffolding task files — $0.58
 - [ ] T-085: ralph migrate — clean up legacy prompt files from pre-built-in-first projects
+- [ ] T-086: Remove agent instructions file generation and dependency
 
-## 16 — Observability
+## 16 — Observability ($1.77)
 
-- [ ] T-083: ralph review T-NNN — task execution analysis and failure diagnosis
+- [x] T-083: ralph review T-NNN — task execution analysis and failure diagnosis — $1.77
 - [ ] T-084: ralph review --coach — project-wide coaching and improvement suggestions
 
-**Grand Total: $69.30**
+**Grand Total: $71.07**
