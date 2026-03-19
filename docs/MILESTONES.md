@@ -141,9 +141,9 @@
 - [ ] T-085: ralph migrate — clean up legacy prompt files from pre-built-in-first projects
 - [ ] T-086: Remove agent instructions file generation and dependency
 
-## 16 — Observability ($1.77)
+## 16 — Observability ($3.49)
 
 - [x] T-083: ralph review T-NNN — task execution analysis and failure diagnosis — $1.77
-- [ ] T-084: ralph review --coach — project-wide coaching and improvement suggestions
+- [x] T-084: ralph review --coach — project-wide coaching and improvement suggestions — $1.72
 
-**Grand Total: $71.07**
+**Grand Total: $72.79**
