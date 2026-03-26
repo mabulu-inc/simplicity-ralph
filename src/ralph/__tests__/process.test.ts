@@ -81,6 +81,22 @@ describe('process management', () => {
       expect(content.trim()).toContain('ralph-proc-');
     });
 
+    it('creates the parent directory of logFile if it does not exist', async () => {
+      const dir = await mkdtemp(join(tmpdir(), 'ralph-proc-'));
+      cleanupDirs.push(dir);
+      const logFile = join(dir, 'nested', 'deep', 'output.log');
+
+      const child = spawnWithCapture('echo', ['dir-created'], { logFile });
+      cleanupPids.push(child.pid!);
+
+      await new Promise<void>((resolve) => {
+        child.on('close', () => resolve());
+      });
+
+      const content = await readFile(logFile, 'utf-8');
+      expect(content).toContain('dir-created');
+    });
+
     it('returns a ChildProcess with a valid pid', () => {
       const child = spawnWithCapture('sleep', ['0.01'], {});
       cleanupPids.push(child.pid!);

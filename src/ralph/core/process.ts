@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { createWriteStream, type WriteStream } from 'node:fs';
+import { createWriteStream, mkdirSync, type WriteStream } from 'node:fs';
+import { dirname } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -66,6 +67,7 @@ export function spawnWithCapture(
   });
 
   if (options.logFile) {
+    mkdirSync(dirname(options.logFile), { recursive: true });
     const stream = createWriteStream(options.logFile, { flags: 'a' });
     pipeStdoutWithTimestamps(child, stream);
     child.stderr?.pipe(stream);
