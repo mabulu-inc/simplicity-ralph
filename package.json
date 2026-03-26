@@ -1,6 +1,6 @@
 {
   "name": "@smplcty/ralph",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Stateless, PRD-driven AI development loop — automated TDD with Claude Code, Gemini CLI, Codex, Continue, and Cursor",
   "repository": {
     "type": "git",
