@@ -41,7 +41,7 @@
 - [x] T-014: CI workflow — $0.42
 - [x] T-015: Publish workflow — $0.21
 
-## 8 — Robustness ($21.78)
+## 8 — Robustness ($22.03)
 
 - [x] T-018: Structured Markdown parsing for task and config files — $0.82
 - [x] T-019: Externalize pricing and complexity tier configuration — $0.71
@@ -69,7 +69,7 @@
 - [x] T-088: Remove database config, init prompt, and loop step — $1.93
 - [x] T-089: Add --version flag to CLI — $0.67
 - [x] T-096: Fix ralph init default commands for npm package manager — $0.37
-- [ ] T-097: Pre-create log directory in spawnWithCapture to prevent ENOENT crash
+- [x] T-097: Pre-create log directory in spawnWithCapture to prevent ENOENT crash — $0.25
 
 ## 9 — Agent Abstraction ($6.23)
 
@@ -157,4 +157,4 @@
 - [x] T-094: Fix ralph review --coach to read agent config from ralph.config.json — $0.85
 - [x] T-095: Add textOutputFormat to AgentProvider for coaching text output — $0.74
 
-**Grand Total: $86.20**
+**Grand Total: $86.45**
